@@ -1,4 +1,4 @@
-![listerine logo](/rainbow-logo.png)
+![listerine logo](https://raw.githubusercontent.com/tasteee/listerine/refs/heads/main/rainbow-logo.png)
 
 listerine is a powerful and intuitive JavaScript/TypeScript library for filtering arrays of objects using a declarative query syntax. It allows you to express complex filtering conditions in a readable, maintainable way without relying on cryptic shorthand notations.
 
