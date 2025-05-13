@@ -1,5 +1,6 @@
 import { FILTER_KEYS } from './constants'
 import { filters } from './filters'
+import { errors, logs } from './logs'
 
 export function listerine<DataT = any>(target: DataT[]) {
   function prepareQueryTests(queryOptions: QueryOptionsT): TestT<DataT>[] {
@@ -17,7 +18,9 @@ export function listerine<DataT = any>(target: DataT[]) {
         for (const key in filterOptions) {
           const filterKey = key as keyof typeof filters
           const filterValue = filterOptions[key]
-          if (!FILTER_KEYS.includes(key)) throw new Error(`Invalid filter name: ${key}`)
+          const isValidFilterKey = FILTER_KEYS.includes(filterKey)
+          if (!isValidFilterKey) logs.errors.invalidFilterKey(filterKey)
+
           tests.push(filters[filterKey](actualKey, filterValue))
         }
       }

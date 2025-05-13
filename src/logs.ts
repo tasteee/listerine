@@ -1,3 +1,4 @@
+import { FILTER_KEYS } from './constants'
 import { logger } from './logger'
 
 const arrayOneOfArray = [
@@ -28,6 +29,13 @@ export const warnings = {
   numericComparisonOnNonNumber: logger.createWarning(numericComparisonOnNonNumber),
 }
 
+const invalidFilterKey = ['invalid filter key used.', 'valid filter keys are: ' + FILTER_KEYS.map((key) => `- ${key}`)]
+
+export const errors = {
+  invalidFilterKey: logger.createError(invalidFilterKey),
+}
+
 export const logs = {
   warnings,
+  errors,
 }
