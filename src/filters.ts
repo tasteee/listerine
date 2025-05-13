@@ -1,6 +1,6 @@
 // src/filters.ts
 import { get, isEqual, isSubsetOf, isSupersetOf } from './helpers'
-import { logger, logs, warnings } from './logs'
+import { warnings } from './logs'
 
 /**
  * Type for filter test functions
@@ -509,7 +509,7 @@ const $isSubsetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
 
     if (isItemValueString) {
       const warningData = { item, itemValue, key, $isSupersetOfvalues: values }
-      warnings.subsetSupersetType(warningData)
+      warnings.subsetOnArray(warningData)
       return false
     }
 
@@ -526,7 +526,7 @@ const $isSupersetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
 
     if (isItemValueString) {
       const warningData = { item, itemValue, key, $isSupersetOfvalues: values }
-      warnings.subsetSupersetType(warningData)
+      warnings.supersetOnArray(warningData)
       return false
     }
 

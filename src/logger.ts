@@ -4,13 +4,13 @@ const errorEmoji = '⛔'
 const warningPrefix = `${warningEmoji} ${messagingPrefix}`
 const errorPrefix = `${errorEmoji} ${messagingPrefix}`
 
-export const createWarning = (message: string[]) => {
+const createWarning = (message: string[]) => {
   return (...args: any[]) => {
     console.warn(warningPrefix, message.join('\n'), ...args)
   }
 }
 
-export const createError = (message: string[]) => {
+const createError = (message: string[]) => {
   return (...args: any[]) => {
     console.error(errorPrefix, message.join('\n'), ...args)
   }

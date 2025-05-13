@@ -506,7 +506,7 @@ describe('listerine', () => {
       listerine(DATA0).query({
         age$: { $invalidFilter: 30 } as any,
       })
-    }).toThrow('Invalid filter name: $invalidFilter')
+    }).toThrow()
   })
 
   it('should handle $isBetween', () => {

@@ -1,6 +1,6 @@
 {
   "name": "listerine",
-  "version": "0.0.1",
+  "version": "0.0.11",
   "description": "A simpler way to search and filter arrays.",
   "author": "rokki <hannahroksanne@gmail.com>",
   "license": "MIT",
@@ -21,7 +21,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "rainbow-logo.png"
   ],
   "sideEffects": false,
   "scripts": {

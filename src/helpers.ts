@@ -13,7 +13,7 @@ export const isSupersetOf = (target: any[], values: any[]): boolean => {
   return values.every((val) => target.includes(val))
 }
 
-export const isEqual = <DataT>(a: DataT, b: DataT): boolean => {
+export const isEqual = (a: any, b: any): boolean => {
   if (a === b) return true
 
   // If one is null/undefined but not both (we already checked a === b)
