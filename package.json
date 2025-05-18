@@ -1,6 +1,6 @@
 {
   "name": "listerine",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "query arrays of complex data types using an intuitive, DX focused API",
   "author": "rokki <hannahroksanne@gmail.com>",
   "license": "MIT",
@@ -37,5 +37,12 @@
   },
   "dependencies": {
     "just-safe-get": "^4.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tasteee/listerine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tasteee/listerine/issues"
   }
 }
