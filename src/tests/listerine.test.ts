@@ -1,4 +1,4 @@
-// src/tests/listerine.test.ts
+// listerine.test.ts
 import { describe, it, expect } from 'vitest'
 import { listerine } from '../listerine'
 
@@ -15,35 +15,35 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
 
     const result1 = listerine(DATA0).query({
       age: 30,
     })
 
     const expected1 = [DATA0[0]]
-    expect(result1).toEqual(expected1)
+    expect(result1.data).toEqual(expected1)
 
     const result2 = listerine(DATA0).query({
       isActive: false,
     })
 
     const expected2 = [DATA0[1]]
-    expect(result2).toEqual(expected2)
+    expect(result2.data).toEqual(expected2)
 
     const result3 = listerine(DATA0).query({
       tags: ['tall', 'strong'],
     })
 
     const expected3 = [DATA0[0]]
-    expect(result3).toEqual(expected3)
+    expect(result3.data).toEqual(expected3)
 
     const result4 = listerine(DATA0).query({
       id: 1,
     })
 
     const expected4 = [DATA0[1]]
-    expect(result4).toEqual(expected4)
+    expect(result4.data).toEqual(expected4)
   })
 
   // STRING TESTS
@@ -56,7 +56,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $doesNotStartWith', () => {
@@ -67,7 +67,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $endsWith', () => {
@@ -78,7 +78,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $doesNotEndWith', () => {
@@ -89,7 +89,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $isLongerThan', () => {
@@ -100,7 +100,7 @@ describe('listerine', () => {
     })
 
     const expected0 = DATA0
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $isNotLongerThan', () => {
@@ -111,7 +111,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $isShorterThan', () => {
@@ -122,7 +122,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $isNotShorterThan', () => {
@@ -133,7 +133,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $contains', () => {
@@ -144,7 +144,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle string $doesNotContain', () => {
@@ -155,7 +155,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   // ARRAY TESTS
@@ -168,7 +168,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $doesNotContain', () => {
@@ -179,7 +179,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
 
     const result1 = listerine(DATA0).query({
       tags$: {
@@ -188,7 +188,7 @@ describe('listerine', () => {
     })
 
     const expected1 = [DATA0[0]]
-    expect(result1).toEqual(expected1)
+    expect(result1.data).toEqual(expected1)
 
     const result2 = listerine(DATA0).query({
       tags$: {
@@ -197,7 +197,7 @@ describe('listerine', () => {
     })
 
     const expected2 = [DATA0[0]]
-    expect(result2).toEqual(expected2)
+    expect(result2.data).toEqual(expected2)
   })
 
   it('should handle array $startsWith', () => {
@@ -208,7 +208,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $doesNotStartWith', () => {
@@ -219,7 +219,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $endsWith', () => {
@@ -230,7 +230,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $doesNotEndWith', () => {
@@ -241,7 +241,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $isLongerThan', () => {
@@ -252,7 +252,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $isNotLongerThan', () => {
@@ -263,7 +263,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $isShorterThan', () => {
@@ -274,7 +274,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[0]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $isNotShorterThan', () => {
@@ -285,7 +285,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $containsAll', () => {
@@ -296,7 +296,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle array $containsSome', () => {
@@ -307,7 +307,7 @@ describe('listerine', () => {
     })
 
     const expected0 = DATA0
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   // Add these tests to your existing listerine.test.ts file
@@ -318,7 +318,7 @@ describe('listerine', () => {
       age$: { $isGreaterThan: 30 },
     })
     const expected0 = [DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle numeric $isLessThan', () => {
@@ -326,7 +326,7 @@ describe('listerine', () => {
       age$: { $isLessThan: 30 },
     })
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle numeric $isGreaterThanOrEqualTo', () => {
@@ -334,7 +334,7 @@ describe('listerine', () => {
       age$: { $isGreaterThanOrEqualTo: 30 },
     })
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle numeric $isLessThanOrEqualTo', () => {
@@ -342,7 +342,7 @@ describe('listerine', () => {
       age$: { $isLessThanOrEqualTo: 30 },
     })
     const expected0 = [DATA0[0], DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle numeric $isNotGreaterThan', () => {
@@ -350,7 +350,7 @@ describe('listerine', () => {
       age$: { $isNotGreaterThan: 30 },
     })
     const expected0 = [DATA0[0], DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle numeric $isNotLessThan', () => {
@@ -358,7 +358,7 @@ describe('listerine', () => {
       age$: { $isNotLessThan: 30 },
     })
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle numeric $isNotGreaterThanOrEqualTo', () => {
@@ -366,7 +366,7 @@ describe('listerine', () => {
       age$: { $isNotGreaterThanOrEqualTo: 30 },
     })
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle numeric $isNotLessThanOrEqualTo', () => {
@@ -374,7 +374,7 @@ describe('listerine', () => {
       age$: { $isNotLessThanOrEqualTo: 30 },
     })
     const expected0 = [DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   // EQUALITY TESTS
@@ -383,7 +383,7 @@ describe('listerine', () => {
       name$: { $equals: 'John' },
     })
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle $doesNotEqual', () => {
@@ -391,7 +391,7 @@ describe('listerine', () => {
       name$: { $doesNotEqual: 'John' },
     })
     const expected0 = [DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle $isOneOf', () => {
@@ -399,7 +399,7 @@ describe('listerine', () => {
       age$: { $isOneOf: [25, 35] },
     })
     const expected0 = [DATA0[1], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle $isNotOneOf', () => {
@@ -407,7 +407,7 @@ describe('listerine', () => {
       age$: { $isNotOneOf: [25, 35] },
     })
     const expected0 = [DATA0[0]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   // EXISTENCE TESTS
@@ -418,7 +418,7 @@ describe('listerine', () => {
       age$: { $exists: true },
     })
     const expected0 = [DATA0[0], DATA0[1], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle $exists with false', () => {
@@ -428,7 +428,7 @@ describe('listerine', () => {
       age$: { $exists: false },
     })
     const expected0 = [{ id: 3, name: 'Alice', isActive: true }]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   // EMPTINESS TESTS
@@ -439,7 +439,7 @@ describe('listerine', () => {
       tags$: { $isEmpty: true },
     })
     const expected0 = [{ id: 3, name: 'Alice', age: 40, isActive: true, tags: [] }]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle $isEmpty with false', () => {
@@ -449,7 +449,7 @@ describe('listerine', () => {
       tags$: { $isEmpty: false },
     })
     const expected0 = [DATA0[0], DATA0[1], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   // COMPLEX QUERY TESTS
@@ -461,7 +461,7 @@ describe('listerine', () => {
       },
     })
     const expected0 = [DATA0[0]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle multiple fields with filters', () => {
@@ -470,7 +470,7 @@ describe('listerine', () => {
       name$: { $startsWith: 'J' },
     })
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle combination of direct match and filters', () => {
@@ -479,7 +479,7 @@ describe('listerine', () => {
       age$: { $isGreaterThan: 30 },
     })
     const expected0 = [DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle complex nested queries', () => {
@@ -490,14 +490,14 @@ describe('listerine', () => {
       tags$: { $containsSome: ['smart', 'tall'] },
     })
     const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should return empty array when no items match', () => {
     const result0 = listerine(DATA0).query({
       age$: { $isGreaterThan: 100 },
     })
-    expect(result0).toEqual([])
+    expect(result0.data).toEqual([])
   })
 
   // ERROR HANDLING
@@ -515,7 +515,7 @@ describe('listerine', () => {
     })
 
     const expected0 = [DATA0[2]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 
   it('should handle $isNotBetween', () => {
@@ -523,6 +523,6 @@ describe('listerine', () => {
       age$: { $isNotBetween: [31, 39] },
     })
     const expected0 = [DATA0[0], DATA0[1]]
-    expect(result0).toEqual(expected0)
+    expect(result0.data).toEqual(expected0)
   })
 })

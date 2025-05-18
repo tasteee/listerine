@@ -1,4 +1,4 @@
-// src/tests/advanced.test.ts
+// advanced.test.ts
 import { describe, it, expect } from 'vitest'
 import { listerine } from '../listerine'
 
@@ -36,7 +36,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[0]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -44,7 +44,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -54,7 +54,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -62,7 +62,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[0], DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -72,7 +72,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[0]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -80,7 +80,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -90,7 +90,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -98,7 +98,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[0], DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -108,7 +108,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[0], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -116,7 +116,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -124,7 +124,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -132,7 +132,7 @@ describe('listerine', () => {
       const query = { tags$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -142,7 +142,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -150,7 +150,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[0], DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -160,7 +160,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[0], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -168,7 +168,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -178,7 +178,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -186,7 +186,7 @@ describe('listerine', () => {
       const query = { id$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -196,7 +196,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected = [DATA0[0], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -204,7 +204,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -214,7 +214,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -222,7 +222,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -232,7 +232,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -240,7 +240,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -250,7 +250,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -258,7 +258,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -268,7 +268,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -276,7 +276,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -286,7 +286,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
 
     {
@@ -294,7 +294,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -304,7 +304,7 @@ describe('listerine', () => {
       const query = { age$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -314,7 +314,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -324,7 +324,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -334,7 +334,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -344,7 +344,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -354,7 +354,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -364,7 +364,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -374,7 +374,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -384,7 +384,7 @@ describe('listerine', () => {
       const query = { name$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -394,7 +394,7 @@ describe('listerine', () => {
       const query = { tags$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = []
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -404,7 +404,7 @@ describe('listerine', () => {
       const query = { tags$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[1], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -414,7 +414,7 @@ describe('listerine', () => {
       const query = { 'meta.createdAt$': createdAt$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[0], DATA0[2]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -424,7 +424,7 @@ describe('listerine', () => {
       const query = { 'meta.createdAt$': createdAt$ }
       const results = listerine(DATA0).query(query)
       const expected: typeof DATA0 = [DATA0[1]]
-      expect(results).toEqual(expected)
+      expect(results.data).toEqual(expected)
     }
   })
 
@@ -446,7 +446,7 @@ describe('listerine', () => {
 
       const result0 = listerine(DATA0).query(query)
       const expected0 = [DATA0[0]]
-      expect(result0).toEqual(expected0)
+      expect(result0.data).toEqual(expected0)
     }
   })
 })

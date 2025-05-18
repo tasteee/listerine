@@ -1,4 +1,4 @@
-// src/tests/filters.test.ts
+// filters.test.ts
 import { describe, it, expect } from 'vitest'
 import { filters } from '../filters'
 

@@ -29,7 +29,8 @@ export const warnings = {
   numericComparisonOnNonNumber: logger.createWarning(numericComparisonOnNonNumber),
 }
 
-export const invalidFilterKey = ['valid filter keys are: ' + FILTER_KEYS.map((key) => `- ${key}`)]
+export const validFilterKeys = FILTER_KEYS.map((key) => ` ${key}`)
+export const invalidFilterKey = ['valid filter keys are: ' + validFilterKeys]
 
 export const errors = {
   invalidFilterKey: logger.createError(invalidFilterKey),

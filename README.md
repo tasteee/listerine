@@ -1,211 +1,349 @@
 ![listerine logo](https://raw.githubusercontent.com/tasteee/listerine/refs/heads/main/rainbow-logo.png)
 
-listerine is a powerful and intuitive JavaScript/TypeScript library for filtering arrays of objects using a declarative query syntax. It allows you to express complex filtering conditions in a readable, maintainable way without relying on cryptic shorthand notations.
+listerine allows you to query arrays of complex data types using an intuitive, DX focused API.
 
-_listerine is also experimental. Take inspiration, but don't put a lot of faith in this library yet in terms of perforance, efficency, etc._
-
-## Installation
+### Installation
 
 ```bash
 npm install listerine
 ```
 
-## Basic Usage
+## Quick Start
 
-```ts
+### Querying
+
+```javascript
 import { listerine } from 'listerine'
 
-const users = [
-  { id: 1, name: 'Alice', age: 28, isActive: true },
-  { id: 2, name: 'Bob', age: 35, isActive: false },
-  { id: 3, name: 'Charlie', age: 22, isActive: true },
-]
+const lilJohn = { id: 0, name: 'John', age: 30, isActive: true }
+const hannah = { id: 1, name: 'Hannah', age: 25, isActive: true }
+const oldJohn = { id: 2, name: 'John', age: 35, isActive: false }
+const users = [lilJohn, hannah, oldJohn]
 
-// Find active users over 25
-const results = listerine(users).query({
-  isActive: true,
-  age$: { $isGreaterThan: 25 },
+// Directly query by key/value matches.
+const queryOptions = { isActive: true }
+const query = listerine(users).query(queryOptions)
+query.data // [lilJohn, hannah]
+
+// Query using key/value filters.
+const queryOptions = { age$: { $isBetween: [30, 40] } }
+const query = listerine(users).query(queryOptions)
+query.data // [oldJohn]
+
+// Query using a combo of direct key/value matches and filters.
+const queryOptions = { name$: { $startsWith: 'H' }, isActive: true }
+const query = listerine(users).query(queryOptions)
+query.data // [hannah]
+```
+
+### Sorting
+
+```javascript
+import { listerine } from 'listerine'
+
+const py = { name: 'python', age: 34, tags: ['server', 'clean', 'popular'] }
+const js = { name: 'javascript', age: 30, tags: ['web', 'server', 'popular'] }
+const nim = { name: 'nim', age: 20, tags: ['server', 'transpiled', 'unpopular'] }
+const languages = [py, js, nim]
+
+// Sort your query results by key / direction.
+const queryOptions = { tags$: { $contains: 'popular' } }
+const sortOptions = { key: 'name', direction: 'ascending' } // or 'descending'
+const query = listerine(languages).query(queryOptions).sort(sortOptions)
+query.data // [js, py]
+
+// Sort your query results with a sort function.
+const queryOptions = { tags$: { $contains: 'server' } }
+const sorter = (a, b) => (a.name < b.name ? -1 : 1)
+const query = listerine(languages).query(queryOptions).sort(sorter)
+query.data // [nim, py, js]
+```
+
+### Selecting
+
+```javascript
+import { listerine } from 'listerine'
+
+const a = { index: 0, letter: 'a', isVowel: true }
+const b = { index: 1, letter: 'b', isVowel: false }
+const c = { index: 2, letter: 'c', isVowel: false }
+const letters = [a, b, c]
+
+// Select specific properties you want on the final data.
+const queryOptions = { index$: { $isGreaterThan: 0 } }
+const selectKeys = ['letter']
+const query = listerine(letters).query(queryOptions).select(selectKeys)
+query.data // [{ letter: 'b' }, { letter: 'c' }]
+
+// Select specific properties you do NOT want on the final data.
+const queryOptions = {} // query everything!
+const selectKeys = ['!letter', '!isVowel']
+const query = listerine(letters).query(queryOptions).select(selectKeys)
+query.data // [{ index: 0 }, { index: 1 }, { index: 2 }]
+
+// Provide a selector function to derive your final data.
+const queryOptions = { isVowel$: { $isNot: true } }
+const selector = (item) => ({ capitalLetter: item.letter.toUpperCase() })
+const query = listerine(letters).query(queryOptions).select(selectKeys)
+query.data // [{ capitalLetter: 'B' }, { capitalLetter: 'C' }]
+```
+
+## Features
+
+### Query Operations
+
+listerine supports a wide range of query operations to filter your data:
+
+#### Direct Match
+
+```javascript
+listerine(data).query({ name: 'John' })
+```
+
+#### String Operations
+
+- `$startsWith`: Match strings that start with a value
+- `$endsWith`: Match strings that end with a value
+- `$contains`: Match strings that contain a value
+- `$doesNotStartWith`: Match strings that don't start with a value
+- `$doesNotEndWith`: Match strings that don't end with a value
+- `$doesNotContain`: Match strings that don't contain a value
+- `$isLongerThan`: Match strings longer than a value
+- `$isNotLongerThan`: Match strings not longer than a value
+- `$isShorterThan`: Match strings shorter than a value
+- `$isNotShorterThan`: Match strings not shorter than a value
+
+```javascript
+listerine(data).query({
+  name$: { $startsWith: 'J' },
 })
 ```
 
-## Query Syntax
+#### Numeric Operations
 
-The query syntax is designed to be intuitive and self-documenting. There are two main ways to specify conditions:
+- `$isGreaterThan`: Match numbers greater than a value
+- `$isLessThan`: Match numbers less than a value
+- `$isGreaterThanOrEqualTo`: Match numbers greater than or equal to a value
+- `$isLessThanOrEqualTo`: Match numbers less than or equal to a value
+- `$isNotGreaterThan`: Match numbers not greater than a value
+- `$isNotLessThan`: Match numbers not less than a value
+- `$isNotGreaterThanOrEqualTo`: Match numbers not greater than or equal to a value
+- `$isNotLessThanOrEqualTo`: Match numbers not less than or equal to a value
+- `$isBetween`: Match numbers between two values
+- `$isNotBetween`: Match numbers not between two values
 
-1. **Direct match**: `propertyName: value` - Checks if the property exactly equals the specified value
-2. **Filter conditions**: `propertyName$: { /* filters */ }` - Applies specific filters to the property
-
-### Direct Match
-
-```ts
-// Find users with isActive set to true
-listerine(users).query({ isActive: true })
-
-// Find users with name 'Alice'
-listerine(users).query({ name: 'Alice' })
+```javascript
+listerine(data).query({
+  age$: { $isBetween: [25, 35] },
+})
 ```
 
-### Filter Conditions
+#### Array Operations
 
-Append `$` to the property name to use filter conditions:
+- `$contains`: Match arrays containing a value
+- `$doesNotContain`: Match arrays not containing a value
+- `$startsWith`: Match arrays starting with a value
+- `$doesNotStartWith`: Match arrays not starting with a value
+- `$endsWith`: Match arrays ending with a value
+- `$doesNotEndWith`: Match arrays not ending with a value
+- `$isLongerThan`: Match arrays longer than a value
+- `$isNotLongerThan`: Match arrays not longer than a value
+- `$isShorterThan`: Match arrays shorter than a value
+- `$isNotShorterThan`: Match arrays not shorter than a value
+- `$containsAll`: Match arrays containing all specified values
+- `$containsSome`: Match arrays containing some specified values
+- `$isEmpty`: Match empty arrays
+- `$isNotEmpty`: Match non-empty arrays
 
-```ts
-// Find users whose name contains 'li'
-listerine(users).query({ name$: { $contains: 'li' } })
+```javascript
+listerine(data).query({
+  tags$: { $containsAll: ['smart', 'tall'], $endsWith: 'smart' },
+})
 ```
 
-### Nested Properties
+#### Equality Operations
 
-Access nested properties using dot notation:
+These work for any data type.
 
-```ts
-const data = [{ user: { name: 'Alice', profile: { age: 28 } } }, { user: { name: 'Bob', profile: { age: 35 } } }]
+- `$equals` / `$is`: Match values equal to a value
+- `$doesNotEqual` / `$isNot`: Match values not equal to a value
+- `$isOneOf`: Match values that are one of the specified values
+- `$isNotOneOf`: Match values that are not one of the specified values
 
-// Direct match on nested property
-listerine(data).query({ 'user.name': 'Alice' })
-
-// Filters on nested property
-listerine(data).query({ 'user.profile.age$': { $isGreaterThan: 30 } })
+```javascript
+listerine(data).query({
+  age$: { $isOneOf: [25, 35], $isNot: 27 },
+  name$: { $isOneOf: ['Hannah', 'Rokki'] },
+})
 ```
 
-### TODO: Logical Operators (NOT YET IMPLEMENTED)
+#### Existence Operations
+
+- `$exists`: Match fields that exist or don't exist
+
+```javascript
+listerine(data).query({
+  middleName$: { $exists: false },
+})
+```
+
+### Logical Operators
 
 Combine multiple conditions with logical operators:
 
-```ts
-// AND conditions (default)
-listerine(users).query({
-  isActive: true,
-  age$: { $isGreaterThan: 25 },
-})
+#### $and
 
-// OR conditions
-listerine(users).query({
-  $or: [{ name: 'Alice' }, { age$: { $isGreaterThan: 30 } }],
+```javascript
+listerine(data).query({
+  $and: [{ isActive: true }, { age$: { $isGreaterThan: 30 } }],
 })
 ```
 
-## Available Filters
+Note: Multiple conditions in a single query object are implicitly combined with AND.
 
-### Equality Filters
+#### $or
 
-| Filter          | Description                            | Example                                           |
-| --------------- | -------------------------------------- | ------------------------------------------------- |
-| `$equals`       | Exact equality                         | `{ name$: { $equals: 'Alice' } }`                 |
-| `$doesNotEqual` | Negated equality                       | `{ name$: { $doesNotEqual: 'Alice' } }`           |
-| `$isOneOf`      | Value is one of the provided array     | `{ name$: { $isOneOf: ['Alice', 'Bob'] } }`       |
-| `$isNotOneOf`   | Value is not one of the provided array | `{ name$: { $isNotOneOf: ['Charlie', 'Dave'] } }` |
-
-### Numeric Comparison Filters
-
-| Filter                       | Description                                           | Example                                        |
-| ---------------------------- | ----------------------------------------------------- | ---------------------------------------------- |
-| `$isGreaterThan`             | Value is greater than provided number                 | `{ age$: { $isGreaterThan: 25 } }`             |
-| `$isLessThan`                | Value is less than provided number                    | `{ age$: { $isLessThan: 30 } }`                |
-| `$isGreaterThanOrEqualTo`    | Value is greater than or equal to provided number     | `{ age$: { $isGreaterThanOrEqualTo: 28 } }`    |
-| `$isLessThanOrEqualTo`       | Value is less than or equal to provided number        | `{ age$: { $isLessThanOrEqualTo: 35 } }`       |
-| `$isNotGreaterThan`          | Value is not greater than provided number             | `{ age$: { $isNotGreaterThan: 30 } }`          |
-| `$isNotLessThan`             | Value is not less than provided number                | `{ age$: { $isNotLessThan: 25 } }`             |
-| `$isNotGreaterThanOrEqualTo` | Value is not greater than or equal to provided number | `{ age$: { $isNotGreaterThanOrEqualTo: 35 } }` |
-| `$isNotLessThanOrEqualTo`    | Value is not less than or equal to provided number    | `{ age$: { $isNotLessThanOrEqualTo: 20 } }`    |
-| `$isBetween`                 | Value is between two numbers (inclusive)              | `{ age$: { $isBetween: [25, 35] } }`           |
-| `$isNotBetween`              | Value is not between two numbers (exclusive)          | `{ age$: { $isNotBetween: [20, 25] } }`        |
-
-### String Filters
-
-| Filter              | Description                                       | Example                                  |
-| ------------------- | ------------------------------------------------- | ---------------------------------------- |
-| `$startsWith`       | String starts with the provided substring         | `{ name$: { $startsWith: 'Al' } }`       |
-| `$doesNotStartWith` | String does not start with the provided substring | `{ name$: { $doesNotStartWith: 'Bo' } }` |
-| `$endsWith`         | String ends with the provided substring           | `{ name$: { $endsWith: 'ce' } }`         |
-| `$doesNotEndWith`   | String does not end with the provided substring   | `{ name$: { $doesNotEndWith: 'ob' } }`   |
-| `$contains`         | String contains the provided substring            | `{ name$: { $contains: 'lic' } }`        |
-| `$doesNotContain`   | String does not contain the provided substring    | `{ name$: { $doesNotContain: 'bob' } }`  |
-
-### Array Filters
-
-| Filter              | Description                                            | Example                                          |
-| ------------------- | ------------------------------------------------------ | ------------------------------------------------ |
-| `$contains`         | Array includes the provided value                      | `{ tags$: { $contains: 'js' } }`                 |
-| `$doesNotContain`   | Array does not include the provided value              | `{ tags$: { $doesNotContain: 'python' } }`       |
-| `$containsAll`      | Array includes all provided values                     | `{ tags$: { $containsAll: ['js', 'ts'] } }`      |
-| `$containsSome`     | Array includes at least one of the provided values     | `{ tags$: { $containsSome: ['js', 'python'] } }` |
-| `$startsWith`       | Array's first element matches the provided value       | `{ tags$: { $startsWith: 'js' } }`               |
-| `$doesNotStartWith` | Array's first element doesn't match the provided value | `{ tags$: { $doesNotStartWith: 'python' } }`     |
-| `$endsWith`         | Array's last element matches the provided value        | `{ tags$: { $endsWith: 'ts' } }`                 |
-| `$doesNotEndWith`   | Array's last element doesn't match the provided value  | `{ tags$: { $doesNotEndWith: 'java' } }`         |
-
-### Length Filters (for Strings and Arrays)
-
-| Filter              | Description                                | Example                               |
-| ------------------- | ------------------------------------------ | ------------------------------------- |
-| `$isLongerThan`     | Length is greater than provided number     | `{ name$: { $isLongerThan: 4 } }`     |
-| `$isShorterThan`    | Length is less than provided number        | `{ name$: { $isShorterThan: 6 } }`    |
-| `$isNotLongerThan`  | Length is not greater than provided number | `{ name$: { $isNotLongerThan: 10 } }` |
-| `$isNotShorterThan` | Length is not less than provided number    | `{ name$: { $isNotShorterThan: 3 } }` |
-
-### Special Filters
-
-| Filter     | Description                                                | Example                              |
-| ---------- | ---------------------------------------------------------- | ------------------------------------ |
-| `$exists`  | Property exists and is not null or undefined               | `{ middleName$: { $exists: true } }` |
-| `$isEmpty` | String is empty, array has length 0, or object has no keys | `{ tags$: { $isEmpty: true } }`      |
-
-## Complex Query Examples
-
-You can combine multiple filters to create complex queries:
-
-```ts
-// Find active admin users named John who are exactly 30 years old and are tall
-const results = listerine(users).query({
-  isActive: true,
-  'meta.isAdmin': true,
-  name: 'John',
-  age: 30,
-  tags$: { $contains: 'tall' },
+```javascript
+listerine(data).query({
+  $or: [{ name: 'Alice' }, { age$: { $isGreaterThan: 35 } }],
 })
+```
 
-// Find users with complex criteria
-const complexResults = listerine(users).query({
+#### Nested Logical Operators
+
+```javascript
+listerine(data).query({
+  $or: [{ $and: [{ isActive: true }, { age$: { $isGreaterThan: 30 } }] }, { name: 'Alice' }],
+})
+```
+
+### Sorting
+
+Sort your data with the `sort` method:
+
+```javascript
+// Sort by a specific key
+listerine(data).sort({ key: 'age', direction: 'ascending' })
+listerine(data).sort({ key: 'name', direction: 'descending' })
+
+// Sort with a custom function
+listerine(data).sort((a, b) => a.tags.length - b.tags.length)
+```
+
+### Selection
+
+Select specific fields with the `select` method:
+
+```javascript
+listerine(data).select(['id', 'name'])
+```
+
+### Method Chaining
+
+All methods can be chained together in any order:
+
+```javascript
+listerine(data).query({ isActive: true }).sort({ key: 'age', direction: 'descending' }).select(['id', 'name', 'age'])
+```
+
+## Advanced Examples
+
+### Nested Properties
+
+Query nested properties using dot notation:
+
+```javascript
+listerine(data).query({
+  'meta.isAdmin': true,
+  'meta.createdAt$': { $isGreaterThan: 1000 },
+})
+```
+
+### Complex Filtering
+
+Combine multiple filters for complex queries:
+
+```javascript
+const result = listerine(users).query({
   isActive: true,
   'meta.isAdmin': true,
   age$: { $isGreaterThan: 25, $isLessThan: 35 },
   name$: { $startsWith: 'J', $endsWith: 'n' },
   tags$: { $containsSome: ['smart', 'tall'] },
-  'meta.createdAt$': { $isGreaterThan: 1715550000000, $isLessThan: 1715558500000 },
 })
 ```
 
-## TypeScript Support
+### Multiple Sorts
 
-listerine provides full TypeScript support:
+Apply multiple sorts in sequence:
 
-```ts
-import { listerine } from 'listerine'
+```javascript
+const result = listerine(users)
+  .sort({ key: 'name', direction: 'ascending' }) // First by name
+  .sort({ key: 'age', direction: 'descending' }) // Then by age
+```
 
-interface User {
-  id: number
-  name: string
-  age: number
-  isActive: boolean
-  tags: string[]
-  meta: {
-    isAdmin: boolean
-    isMember: boolean
-    createdAt: number
-  }
-}
+### Complete Example
 
-const users: User[] = [
-  /* user objects */
-]
+```javascript
+const isActiveFilter = { isActive: true }
+const ageFilter = { age$: { $isGreaterThan: 30 } }
+const nameFilter = { name: 'Alice' }
+const isActiveAndOldFilter = { $and: [isActiveFilter, ageFilter] }
+const queryOptions = { $or: [isActiveAndOldFilter, nameFilter] }
+const sortOptions = { key: 'age', direction: 'descending' }
+const seletKeys = ['id', 'name', 'age']
 
-// TypeScript will check that you're filtering on valid properties
-const results = listerine(users).query({
-  isActive: true,
-  age$: { $isGreaterThan: 25 },
-  'meta.isAdmin': true,
-})
+const results = listerine(users).query(queryOptions).sort(sortOptions).select(selectKeys).data
+```
+
+## API Reference
+
+### `listerine(data)`
+
+Creates a new listerine instance with the provided data array.
+
+```javascript
+const list = listerine(data)
+list.data // the provided array
+list.query(...)
+list.sort(...)
+list.select(...)
+```
+
+### `.query(queryObject)`
+
+```javascript
+const list = listerine(data)
+list.query({ name: 'Sally' })
+list.query({ name$: { $endsWith: 'y' }, age$: { $isBetween: [20, 40] } })
+// TODO: $or...
+// TODO: $and...
+```
+
+Filters the data based on the provided query object.
+
+### `.sort(options | compareFn)`
+
+Sorts the data either by a key and direction or using a custom compare function.
+
+```javascript
+const list = listerine(data)
+list.sort({ key: 'dateAdded', direction: 'descending' })
+list.sort({ key: 'name', direction: 'ascending' })
+list.sort((a, b) => a.name.localeCompare(b.name)) // by name, ascending
+list.sort((a, b) => b.name.localeCompare(a.name)) // by name, descending
+```
+
+### `.select(keys | selectorFn)`
+
+Selects or deselects specific keys from each item in the data.
+
+```javascript
+const list = listerine(data)
+list.select(['name', 'age'])
+list.select(['!id', '!emailAddress'])
+list.select((user) => ({ fullName: `${user.firstName} ${user.lastName}` }))
 ```
 
 ## License
