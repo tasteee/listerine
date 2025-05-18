@@ -189,7 +189,7 @@ export function listerine<DataT extends ObjectWithId = any>(data: DataT[]) {
   }
 
   function queryById(id: string | number) {
-    return data.find((item: any) => item.id === id)
+    return data.filter((item: any) => item.id === id)
   }
 
   function queryByIds(ids: string[] | number[]) {
@@ -228,7 +228,7 @@ export function listerine<DataT extends ObjectWithId = any>(data: DataT[]) {
     const isNumber = typeof queryOptions === 'number'
     const isArray = Array.isArray(queryOptions)
 
-    if (isString || isNumber) return { data: [queryById(queryOptions)].filter(Boolean) }
+    if (isString || isNumber) return listerine(queryById(queryOptions))
     if (isArray) return listerine(queryByIds(queryOptions))
 
     const tests = prepareQueryTests(queryOptions)
