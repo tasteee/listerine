@@ -113,10 +113,7 @@ export function listerine<DataT extends Object = any>(data: DataT[]) {
     direction: 'ascending' | 'descending'
   }
 
-  // Union type for the sort argument
-  type SortArgT = SortFunctionT | SortOptionsT
-
-  function sort(options: SortArgT) {
+  function sort(options: SortFunctionT | SortOptionsT) {
     const isFunction = typeof options === 'function'
 
     if (isFunction) {
@@ -126,6 +123,7 @@ export function listerine<DataT extends Object = any>(data: DataT[]) {
     }
 
     const sortOptions = options as SortOptionsT
+
     const sortedData = [...data].sort((a, b) => {
       const key = sortOptions.key
       const aValue = a[key]
@@ -152,20 +150,7 @@ export function listerine<DataT extends Object = any>(data: DataT[]) {
 
   function select(arg: KeyT[] | SelectorFunctionT) {
     const isSelectorFunction = typeof arg === 'function'
-    const isSelectorArray = Array.isArray(arg)
-
-    if (isSelectorArray) {
-      const keys = arg as KeyT[]
-
-      const dataWithSelectedKeys = data.map((item: DataT) => {
-        return keys.reduce((final, key: KeyT) => {
-          if (item.hasOwnProperty(key)) final[key] = item[key]
-          return final
-        }, {} as Partial<DataT>) as DataT
-      })
-
-      return listerine(dataWithSelectedKeys)
-    }
+    // const isSelectorArray = Array.isArray(arg)
 
     if (isSelectorFunction) {
       const selector = arg as SelectorFunctionT
@@ -176,6 +161,17 @@ export function listerine<DataT extends Object = any>(data: DataT[]) {
 
       return listerine(selectedData)
     }
+
+    const keys = arg as KeyT[]
+
+    const dataWithSelectedKeys = data.map((item: DataT) => {
+      return keys.reduce((final, key: KeyT) => {
+        if (item.hasOwnProperty(key)) final[key] = item[key]
+        return final
+      }, {} as Partial<DataT>) as DataT
+    })
+
+    return listerine(dataWithSelectedKeys)
   }
 
   function query(queryOptions: QueryOptionsT) {
