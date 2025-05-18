@@ -30,7 +30,11 @@ const errors = {
   },
 }
 
-export function listerine<DataT extends Object = any>(data: DataT[]) {
+type ObjectWithId = Object & {
+  id: string | number
+}
+
+export function listerine<DataT extends ObjectWithId = any>(data: DataT[]) {
   type KeyT = keyof DataT
 
   function prepareQueryTests(queryOptions: QueryOptionsT, prefix: string = ''): TestT<DataT>[] {
@@ -110,11 +114,39 @@ export function listerine<DataT extends Object = any>(data: DataT[]) {
   // Define the sort options with correct properties
   type SortOptionsT = {
     key: keyof DataT
-    direction: 'ascending' | 'descending'
+    direction?: 'ascending' | 'descending'
   }
 
-  function sort(options: SortFunctionT | SortOptionsT) {
+  function getSortedData(key: KeyT, direction: string = 'ascending') {
+    return [...data].sort((a, b) => {
+      const aValue = a[key]
+      const bValue = b[key]
+      const isStringA = typeof aValue === 'string'
+      const isStringB = typeof bValue === 'string'
+      const isDescending = direction === 'descending'
+
+      // Handle different data types
+      if (isStringA && isStringB) {
+        if (isDescending) return bValue.localeCompare(aValue)
+        return aValue.localeCompare(bValue)
+      }
+
+      // For numbers and other comparable types
+      if (aValue < bValue) return isDescending ? 1 : -1
+      if (aValue > bValue) return isDescending ? -1 : 1
+      return 0
+    })
+  }
+
+  function sort(options: SortFunctionT | SortOptionsT | string) {
+    const isString = typeof options === 'string'
     const isFunction = typeof options === 'function'
+
+    if (isString) {
+      const key = options as KeyT
+      const sortedData = getSortedData(key, 'ascending')
+      return listerine(sortedData)
+    }
 
     if (isFunction) {
       const sorter = options as SortFunctionT
@@ -123,26 +155,8 @@ export function listerine<DataT extends Object = any>(data: DataT[]) {
     }
 
     const sortOptions = options as SortOptionsT
-
-    const sortedData = [...data].sort((a, b) => {
-      const key = sortOptions.key
-      const aValue = a[key]
-      const bValue = b[key]
-      const isStringA = typeof aValue === 'string'
-      const isStringB = typeof bValue === 'string'
-      const isAscending = sortOptions.direction === 'ascending'
-
-      // Handle different data types
-      if (isStringA && isStringB) {
-        return isAscending ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
-      }
-
-      // For numbers and other comparable types
-      if (aValue < bValue) return isAscending ? -1 : 1
-      if (aValue > bValue) return isAscending ? 1 : -1
-      return 0
-    })
-
+    const direction = sortOptions.direction || 'ascending'
+    const sortedData = getSortedData(sortOptions.key, direction)
     return listerine(sortedData)
   }
 
@@ -174,7 +188,49 @@ export function listerine<DataT extends Object = any>(data: DataT[]) {
     return listerine(dataWithSelectedKeys)
   }
 
-  function query(queryOptions: QueryOptionsT) {
+  function queryById(id: string | number) {
+    return data.find((item: any) => item.id === id)
+  }
+
+  function queryByIds(ids: string[] | number[]) {
+    return data.filter(({ id }) => ids.includes(id as never))
+  }
+
+  function removeById(id: string | number) {
+    return data.filter((item: any) => item.id !== id)
+  }
+
+  function removeByIds(ids: string[] | number[]) {
+    return data.filter(({ id }) => !ids.includes(id as never))
+  }
+
+  function insert(items: DataT | DataT[]) {
+    const isArray = Array.isArray(items)
+    if (isArray) return listerine([...data, ...items])
+    return listerine([...data, items])
+  }
+
+  function remove(queryOptions: QueryOptionsT | string | string[] | number) {
+    const isString = typeof queryOptions === 'string'
+    const isNumber = typeof queryOptions === 'number'
+    const isArray = Array.isArray(queryOptions)
+
+    if (isString || isNumber) return listerine(removeById(queryOptions))
+    if (isArray) return listerine(removeByIds(queryOptions))
+
+    const tests = prepareQueryTests(queryOptions)
+    const nonMathes = data.filter((item) => !tests.every((test) => test(item)))
+    return listerine(nonMathes)
+  }
+
+  function query(queryOptions: QueryOptionsT | string | string[] | number) {
+    const isString = typeof queryOptions === 'string'
+    const isNumber = typeof queryOptions === 'number'
+    const isArray = Array.isArray(queryOptions)
+
+    if (isString || isNumber) return { data: [queryById(queryOptions)].filter(Boolean) }
+    if (isArray) return listerine(queryByIds(queryOptions))
+
     const tests = prepareQueryTests(queryOptions)
     const filtered = data.filter((item) => tests.every((test) => test(item)))
     return listerine(filtered)
@@ -185,5 +241,7 @@ export function listerine<DataT extends Object = any>(data: DataT[]) {
     sort,
     select,
     query,
+    remove,
+    insert,
   }
 }

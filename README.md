@@ -327,7 +327,7 @@ Filters the data based on the provided query object.
 
 Sorts the data either by a key and direction or using a custom compare function.
 
-```javascript
+```js
 const list = listerine(data)
 list.sort({ key: 'dateAdded', direction: 'descending' })
 list.sort({ key: 'name', direction: 'ascending' })

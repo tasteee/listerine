@@ -8,7 +8,54 @@ const DATA0 = [
   { id: 2, name: 'John', age: 35, isActive: true, tags: ['short', 'smart', 'cute', 'fast'] },
 ]
 
+const sarah = { id: 3, name: 'Sarah', age: 28, isActive: false, tags: ['fun', 'chill'] }
+const rokki = { id: 4, name: 'Rokki', age: 34, isActive: true, tags: ['cute', 'smart'] }
+
 describe('listerine', () => {
+  it('should query by id', () => {
+    const result = listerine(DATA0).query(1)
+    expect(result.data[0]).toEqual(DATA0[1])
+  })
+
+  it('should query by ids', () => {
+    const result = listerine(DATA0).query([0, 2])
+    expect(result.data.length).toEqual(2)
+    expect(result.data[0]).toEqual(DATA0[0])
+    expect(result.data[1]).toEqual(DATA0[2])
+  })
+
+  it('should remove by id', () => {
+    const result = listerine(DATA0).remove(1)
+    expect(result.data.length).toEqual(2)
+    expect(result.data[0]).toEqual(DATA0[0])
+    expect(result.data[1]).toEqual(DATA0[2])
+  })
+
+  it('should remove by ids', () => {
+    const result = listerine(DATA0).remove([1, 2])
+    expect(result.data.length).toEqual(1)
+    expect(result.data[0]).toEqual(DATA0[0])
+  })
+
+  it('should insert one', () => {
+    const result = listerine(DATA0).insert(sarah)
+    expect(result.data.length).toEqual(4)
+    expect(result.data[0]).toEqual(DATA0[0])
+    expect(result.data[1]).toEqual(DATA0[1])
+    expect(result.data[2]).toEqual(DATA0[2])
+    expect(result.data[3]).toEqual(sarah)
+  })
+
+  it('should insert multiple', () => {
+    const result = listerine(DATA0).insert([rokki, sarah])
+    expect(result.data.length).toEqual(5)
+    expect(result.data[0]).toEqual(DATA0[0])
+    expect(result.data[1]).toEqual(DATA0[1])
+    expect(result.data[2]).toEqual(DATA0[2])
+    expect(result.data[3]).toEqual(rokki)
+    expect(result.data[4]).toEqual(sarah)
+  })
+
   it('should handle direct match filters', () => {
     const result0 = listerine(DATA0).query({
       name: 'John',
