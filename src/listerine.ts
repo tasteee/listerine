@@ -1,247 +1,511 @@
-import { FILTER_KEYS } from './constants'
-import { filters } from './filters'
-import { invalidFilterKey, validFilterKeys } from './logs'
+import { ObjectWithId, QueryOptionsT, TestT, FilterKeyT } from './global'
+import { filters, FILTER_KEYS } from './filters'
+import { logger } from './logs'
+import get from 'just-safe-get'
 
-// Define proper types for the package
-type QueryOptionsT = Record<string, any>
-type TestT<DataT> = (item: DataT) => boolean
-type FilterKeyT = keyof typeof filters
+type EnhancedDataT<DataT> = DataT[] & {
+  first: DataT
+  last: DataT
+}
 
-const errors = {
-  orRequiresArray(query: any) {
-    const message = '[listerine] $or operator requires an array of conditions'
-    const errorLog = { message, query }
-    console.error(errorLog)
-    return new Error(message)
+const LOGICAL_OPERATOR_KEYS = ['$or', '$and']
+
+const LOGICAL_OPERATOR_CONFIGS = {
+  or: {
+    optionsKey: '$or',
+    testMethodKey: 'some',
+    arrayError: logger.errors.orRequiresArray,
   },
 
-  andRequiresArray(query: any) {
-    const message = '[listerine] $and operator requires an array of conditions'
-    const errorLog = { message, query }
-    console.error(errorLog)
-    return new Error(message)
-  },
-
-  invalidFilterKey(query: any, filterKey: string) {
-    const message = `[listerine] invalid filter key used: ${filterKey}. Valid filter keys: ${validFilterKeys}`
-    const errorLog = { message, query, filterKey }
-    console.error(errorLog)
-    return new Error(message)
+  and: {
+    optionsKey: '$and',
+    testMethodKey: 'every',
+    arrayError: logger.errors.andRequiresArray,
   },
 }
 
-type ObjectWithId = Object & {
-  id: string | number
+function createLogicalOperatorHandler(operatorKey: 'or' | 'and') {
+  const config = LOGICAL_OPERATOR_CONFIGS[operatorKey]
+  const testMethodKey = config.testMethodKey as 'some' | 'every'
+
+  return <DataT>(queryOptions: QueryOptionsT) => {
+    const conditions = queryOptions[config.optionsKey] as QueryOptionsT[]
+    const isArray = Array.isArray(conditions)
+    if (!isArray) throw config.arrayError(queryOptions)
+
+    const test = (item: DataT) => {
+      return conditions[testMethodKey]((condition) => {
+        // Recursively handle nested conditions.
+        const tests = prepareQueryTests<DataT>(condition)
+        return tests.every((test) => test(item))
+      })
+    }
+
+    return [test]
+  }
 }
 
-export function listerine<DataT extends ObjectWithId = any>(data: DataT[]) {
-  type KeyT = keyof DataT
+const handleOperatorOr = createLogicalOperatorHandler('or')
+const handleOperatorAnd = createLogicalOperatorHandler('and')
 
-  function prepareQueryTests(queryOptions: QueryOptionsT, prefix: string = ''): TestT<DataT>[] {
-    if ('$or' in queryOptions) {
-      const orConditions = queryOptions.$or as QueryOptionsT[]
-      const isOrArry = Array.isArray(orConditions)
-      if (!isOrArry) throw errors.orRequiresArray(queryOptions)
+export function prepareQueryTests<DataT>(queryOptions: QueryOptionsT, prefix: string = ''): TestT<DataT>[] {
+  const tests: TestT<DataT>[] = []
+  const hasOperatorOr = '$or' in queryOptions
+  const hasOperatorAnd = '$and' in queryOptions
 
-      // If any condition passes, the OR condition passes
-      const test = (item: DataT) => {
-        return orConditions.some((condition) => {
-          const tests = prepareQueryTests(condition)
-          return tests.every((test) => test(item))
-        })
-      }
-
-      // Return a single test that handles $or logic.
-      return [test]
-    }
-
-    if ('$and' in queryOptions) {
-      const andConditions = queryOptions.$and as QueryOptionsT[]
-      const isAndArray = Array.isArray(andConditions)
-      if (!isAndArray) throw errors.andRequiresArray(queryOptions)
-
-      // All conditions must pass for the AND condition to pass
-      const test = (item: DataT) => {
-        return andConditions.every((condition) => {
-          const tests = prepareQueryTests(condition)
-          return tests.every((test) => test(item))
-        })
-      }
-
-      // Return a single test that handles $or logic.
-      return [test]
-    }
-
-    // Process standard conditions (non-logical operators)
-    const tests: TestT<DataT>[] = []
-
-    for (const [key, value] of Object.entries(queryOptions)) {
-      // Skip logical operators (we handled them above)
-      if (key === '$or' || key === '$and') continue
-
-      // Check if value is a nested object (not null, not array, and not a primitive)
-      if (value !== null && typeof value === 'object' && !Array.isArray(value) && !key.endsWith('$')) {
-        // Recursively process nested object with updated prefix
-        const nestedPrefix = prefix ? `${prefix}.${key}` : key
-        const nestedTests = prepareQueryTests(value, nestedPrefix)
-        tests.push(...nestedTests)
-        continue
-      }
-
-      const isFilterOptions = key.endsWith('$')
-      const actualKey = isFilterOptions ? `${prefix ? prefix + '.' : ''}${key.slice(0, -1)}` : `${prefix ? prefix + '.' : ''}${key}`
-
-      if (!isFilterOptions) {
-        tests.push(filters.$equals(actualKey, value))
-      } else {
-        const filterOptions = value as Record<string, any>
-
-        for (const filterKey in filterOptions) {
-          const filterValue = filterOptions[filterKey]
-          const isValidFilterKey = FILTER_KEYS.includes(filterKey)
-          if (!isValidFilterKey) throw errors.invalidFilterKey(queryOptions, filterKey)
-          tests.push(filters[filterKey as FilterKeyT](actualKey, filterValue))
-        }
-      }
-    }
-
-    return tests
+  // Handle logical operators at the top level
+  if (hasOperatorOr && hasOperatorAnd) {
+    // If both $or and $and exist at the same level, treat them as separate conditions
+    // This creates an implicit AND between the $or and $and operations
+    const orTests = handleOperatorOr<DataT>(queryOptions)
+    const andTests = handleOperatorAnd<DataT>(queryOptions)
+    tests.push(...orTests, ...andTests)
+  } else if (hasOperatorOr) {
+    return handleOperatorOr<DataT>(queryOptions)
+  } else if (hasOperatorAnd) {
+    return handleOperatorAnd<DataT>(queryOptions)
   }
 
-  // Properly type the sort function to return a number as required by Array.sort()
-  type SortFunctionT = (a: DataT, b: DataT) => number
+  const entries = Object.entries(queryOptions)
 
-  // Define the sort options with correct properties
+  // Handle non-logical operators
+  for (const [key, value] of entries) {
+    // Skip logical operators (handled above)
+    if (LOGICAL_OPERATOR_KEYS.includes(key)) continue
+
+    const isValueNull = value === null
+    const isValueArray = Array.isArray(value)
+    const isValueObject = typeof value === 'object'
+    const keyIndicatesFilter = key.endsWith('$')
+
+    // Check if value is a nested object and, if so,
+    // recursively process nested object with updated prefix
+    if (!isValueNull && !keyIndicatesFilter && !isValueArray && isValueObject) {
+      const nestedPrefix = prefix ? `${prefix}.${key}` : key
+      const nestedTests = prepareQueryTests(value, nestedPrefix)
+      tests.push(...nestedTests)
+      continue
+    }
+
+    const getFixedFilterKey = () => `${prefix ? prefix + '.' : ''}${key.slice(0, -1)}`
+    const getStandardKey = () => `${prefix ? prefix + '.' : ''}${key}`
+    const actualKey = keyIndicatesFilter ? getFixedFilterKey() : getStandardKey()
+
+    if (!keyIndicatesFilter) {
+      tests.push(filters.$equals(actualKey, value))
+      continue
+    }
+
+    const filterOptions = value as Record<string, any>
+
+    for (const filterKey in filterOptions) {
+      const filterValue = filterOptions[filterKey]
+      const isValidFilterKey = FILTER_KEYS.includes(filterKey)
+      if (!isValidFilterKey) throw logger.errors.invalidFilterKey({ queryOptions, filterKey })
+      tests.push(filters[filterKey as FilterKeyT](actualKey, filterValue))
+    }
+  }
+
+  return tests
+}
+
+function createEnhancedData<DataT>(target: DataT[]): EnhancedDataT<DataT> {
+  if (!target.hasOwnProperty('first')) {
+    Object.defineProperty(target, 'first', {
+      get() {
+        const firstItem = this[0]
+        return firstItem
+      },
+    })
+  }
+
+  if (!target.hasOwnProperty('last')) {
+    Object.defineProperty(target, 'last', {
+      get() {
+        const lastIndex = this.length - 1
+        const lastItem = this[lastIndex]
+        return lastItem
+      },
+    })
+  }
+
+  return target as EnhancedDataT<DataT>
+}
+
+function checkIfNonArrayObject(target: any) {
+  const isArray = Array.isArray(target)
+  const isObject = typeof target === 'object'
+  return !isArray && isObject
+}
+
+type OptionsT = {
+  strict?: boolean
+  idKey?: string
+}
+
+const DEFAULT_OPTIONS = { strict: false, idKey: 'id' }
+
+function getOptions(configOptions: OptionsT) {
+  const options = { ...DEFAULT_OPTIONS, ...configOptions }
+  return options
+}
+
+export const listerine = <DataT extends ObjectWithId>(target: DataT[], configOptions?: OptionsT) => {
+  const initialEnhancedData = createEnhancedData<DataT>([...target])
+  const options = getOptions(configOptions || {})
+  logger.strict = options.strict
+
+  function getDocumentId(document: ObjectWithId) {
+    return get(document, options.idKey)
+  }
+
+  type DataWithoutIdT = Omit<DataT, 'id'>
+  type DataKeyT = keyof DataT
+  type SortFunctionT = (a: DataT, b: DataT) => number
+  type EnhancedDataListT = EnhancedDataT<DataT>
+  type TestListT = TestT<DataT>[]
+  type DataListT = DataT[]
+  type PartialDataT = Partial<DataT>
+  type PartialDataListT = Partial<DataT>[]
+
   type SortOptionsT = {
     key: keyof DataT
     direction?: 'ascending' | 'descending'
   }
 
-  function getSortedData(key: KeyT, direction: string = 'ascending') {
-    return [...data].sort((a, b) => {
-      const aValue = a[key]
-      const bValue = b[key]
-      const isStringA = typeof aValue === 'string'
-      const isStringB = typeof bValue === 'string'
-      const isDescending = direction === 'descending'
+  class ListerineCollection {
+    private enhancedData: EnhancedDataListT = initialEnhancedData
 
-      // Handle different data types
-      if (isStringA && isStringB) {
-        if (isDescending) return bValue.localeCompare(aValue)
-        return aValue.localeCompare(bValue)
+    set data(newData: DataT[]) {
+      this.enhancedData = createEnhancedData<DataT>(newData)
+    }
+
+    get data(): EnhancedDataListT {
+      return this.enhancedData
+    }
+
+    private getSortedData = (key: DataKeyT, direction?: string) => {
+      const data = this.data as DataT[]
+
+      return data.toSorted((a: DataT, b: DataT) => {
+        const aValue = a[key]
+        const bValue = b[key]
+        const isStringA = typeof aValue === 'string'
+        const isStringB = typeof bValue === 'string'
+        const isDescending = direction === 'descending'
+
+        // Handle different data types
+        if (isStringA && isStringB) {
+          if (isDescending) return bValue.localeCompare(aValue)
+          return aValue.localeCompare(bValue)
+        }
+
+        // For numbers and other comparable types
+        if (aValue < bValue) return isDescending ? 1 : -1
+        if (aValue > bValue) return isDescending ? -1 : 1
+        return 0
+      })
+    }
+
+    private sortByKey = (key: DataKeyT) => {
+      const sortedData = this.getSortedData(key, 'ascending')
+      this.data = sortedData
+    }
+
+    private sortByOptions = (options: SortOptionsT) => {
+      const direction = options.direction || 'ascending'
+      const sortedData = this.getSortedData(options.key, direction)
+      this.data = sortedData
+    }
+
+    private sortByFunction = (comparer: SortFunctionT) => {
+      const data = this.data as DataT[]
+      const sortedData = data.sort(comparer)
+      this.data = sortedData
+    }
+
+    // Perform a query using a query object.
+    private queryByQuery = (queryOptions: QueryOptionsT) => {
+      const tests = prepareQueryTests(queryOptions)
+      return this.getDocumentsThatPass(tests)
+    }
+
+    // Remove a document that matches the given id.
+    private removeById = (id: string) => {
+      this.data = this.getDocumentsWithoutIds([id])
+    }
+
+    // Update this.data to remove all documents with ids
+    // found in the provided ids array.
+    private removeByIds = (ids: string[]) => {
+      this.data = this.getDocumentsWithoutIds(ids)
+    }
+
+    // Get the ids from the array of objects and then
+    // update this.data to remove all documents with
+    // corresponding ids
+    private removeByObjects = (items: ObjectWithId[]) => {
+      const ids = items.map(getDocumentId)
+      this.removeByIds(ids)
+    }
+
+    // When remove is called with an array, determine if
+    // we need to remove multiple documents by primitive ids from
+    // the input array or by ids found on objects in the input array.
+    private removeByArray = (input: string[] | DataT[]) => {
+      const isInputEmpty = input.length === 0
+      if (isInputEmpty) return this
+
+      const isFirstItemString = typeof input[0] === 'string'
+      const isFirstItemObject = checkIfNonArrayObject(input[0])
+      const isInputValid = isFirstItemObject || isFirstItemString
+
+      if (!isInputValid) {
+        logger.errors.removeWithArray({ input })
+        return this
       }
 
-      // For numbers and other comparable types
-      if (aValue < bValue) return isDescending ? 1 : -1
-      if (aValue > bValue) return isDescending ? -1 : 1
-      return 0
-    })
-  }
+      if (isFirstItemString) this.removeByIds(input as string[])
+      if (isFirstItemObject) this.removeByObjects(input as DataT[])
 
-  function sort(options: SortFunctionT | SortOptionsT | string) {
-    const isString = typeof options === 'string'
-    const isFunction = typeof options === 'function'
-
-    if (isString) {
-      const key = options as KeyT
-      const sortedData = getSortedData(key, 'ascending')
-      return listerine(sortedData)
+      return this
     }
 
-    if (isFunction) {
-      const sorter = options as SortFunctionT
-      const sortedData = [...data].sort(sorter)
-      return listerine(sortedData)
+    // Remove all documents that are matched by a query object.
+    private removeByQuery = (queryOptions: QueryOptionsT) => {
+      const tests = prepareQueryTests(queryOptions)
+      this.data = this.getDocumentsThatFail(tests)
     }
 
-    const sortOptions = options as SortOptionsT
-    const direction = sortOptions.direction || 'ascending'
-    const sortedData = getSortedData(sortOptions.key, direction)
-    return listerine(sortedData)
-  }
-
-  type SelectorFunctionT = (item: DataT) => any
-
-  function select(arg: KeyT[] | SelectorFunctionT) {
-    const isSelectorFunction = typeof arg === 'function'
-    // const isSelectorArray = Array.isArray(arg)
-
-    if (isSelectorFunction) {
-      const selector = arg as SelectorFunctionT
-
-      const selectedData = data.map((item: DataT) => {
-        return selector(item)
-      })
-
-      return listerine(selectedData)
+    // Return all documents that pass every test provided.
+    private getDocumentsThatPass = (tests: TestListT) => {
+      return this.data.filter((item) => tests.every((test) => test(item)))
     }
 
-    const keys = arg as KeyT[]
+    // Return all documents that fail every test provided.
+    // Used for filtering out all documents that PASS every
+    // test provided to match documents to be removed.
+    private getDocumentsThatFail = (tests: TestListT) => {
+      return this.data.filter((item) => !tests.every((test) => test(item)))
+    }
 
-    const dataWithSelectedKeys = data.map((item: DataT) => {
-      return keys.reduce((final, key: KeyT) => {
-        if (item.hasOwnProperty(key)) final[key] = item[key]
+    private getDocumentsWithIds = (ids: string[]) => {
+      if (ids.length <= 10) {
+        const documents = []
+        const idsCount = ids.length
+
+        for (const document of this.data) {
+          const documentId = getDocumentId(document)
+          const isMatch = ids.includes(documentId)
+          if (!isMatch) continue
+
+          documents.push(document)
+          const docsCount = documents.length
+          const areAllFound = docsCount === idsCount
+          if (areAllFound) break
+        }
+
+        return documents
+      }
+
+      // For larger data sets, use Set for O(1) lookups.
+      const idSet = new Set(ids)
+      const documents = []
+
+      for (const document of this.data) {
+        const documentId = getDocumentId(document)
+        const isMatch = idSet.has(documentId)
+        if (isMatch) documents.push(document)
+
+        // Early bailout when we've found all requested documents
+        if (documents.length === ids.length) break
+      }
+
+      return documents
+    }
+
+    private getDocumentsWithoutIds = (ids: string[]) => {
+      if (ids.length <= 10) {
+        const documents = []
+        const totalDocuments = this.data.length
+        const idsCount = ids.length
+        const remainingDocsCount = totalDocuments - idsCount
+
+        for (const document of this.data) {
+          const documentId = getDocumentId(document)
+          const isMatch = !ids.includes(documentId)
+          if (!isMatch) continue
+
+          documents.push(document)
+          const docsCount = documents.length
+          const areAllFound = docsCount === remainingDocsCount
+          if (areAllFound) break
+        }
+
+        return documents
+      }
+
+      // For larger data sets, use Set for O(1) lookups.
+      const idSet = new Set(ids)
+      const documents = []
+
+      for (const document of this.data) {
+        const documentId = getDocumentId(document)
+        const isMatch = !idSet.has(documentId)
+        if (isMatch) documents.push(document)
+      }
+
+      return documents
+    }
+
+    // When inserting a new document(s), if no id is provided,
+    // listerine generates and applies one.
+    private getDocumentWithIdEnsured = (item: DataWithoutIdT | DataT) => {
+      const itemId = getDocumentId(item as DataT)
+      const isIdValid = typeof itemId === 'string'
+      if (isIdValid) return item as DataT
+      const id = crypto.randomUUID()
+      const itemWithId = { ...item, [options.idKey]: id }
+      return itemWithId as DataT
+    }
+
+    private insertMultiple = (items: DataWithoutIdT[] | DataT[]) => {
+      const documents = items.map(this.getDocumentWithIdEnsured)
+      this.data = [...this.data, ...documents]
+    }
+
+    private insertOne = (item: DataWithoutIdT | DataT) => {
+      const document = this.getDocumentWithIdEnsured(item)
+      this.data = [...this.data, document]
+    }
+
+    // collection.sort examples:
+    // collection.sort('name') // ascending by default
+    // collection.sort({ key: 'name' }) // ascending by default
+    // collection.sort({ key: 'name', direction: 'descending' })
+    // collection.sort((a, b) => a.name.localeCompare(b.name))
+    sort = (options: SortFunctionT | SortOptionsT | string) => {
+      const isString = typeof options === 'string'
+      const isFunction = typeof options === 'function'
+      const isObject = typeof options === 'object'
+
+      if (isString) this.sortByKey(options as DataKeyT)
+      if (isFunction) this.sortByFunction(options as SortFunctionT)
+      if (isObject) this.sortByOptions(options)
+      return this
+    }
+
+    // collection.insert examples:
+    // collection.insert({ id: '123', name: 'hannah' })
+    // collection.insert([{ id: '123', name: 'hannah' }, { id: '234', name: 'taylor' }])
+    insert = (items: DataWithoutIdT | DataWithoutIdT[] | DataT | DataT[]) => {
+      const isArray = Array.isArray(items)
+      const isObject = !isArray && typeof items === 'object'
+
+      if (isArray) this.insertMultiple(items)
+      if (isObject) this.insertOne(items)
+      return this
+    }
+
+    // collection.remove examples:
+    // collection.remove('some-id')
+    // collection.remove(['some-id', 'other-id'])
+    // collection.remove([{ id: 'some-id', ...unused }])
+    // collection.remove([{ id: 'some-id', ...unused }, { id: 'other-id', ...unused }])
+    // collection.remove({ isActive: true })
+    // collection.remove({ name$: { $startsWith: 'H' } })
+    // collection.remove({ $and:  [...] })
+    // collection.remove({ $or:  [...] })
+    // collection.remove({ $or:  [{ $and: [...], age$: { $isBetween: [15, 35] } }] })
+    remove = (queryOptions: QueryOptionsT | string | string[]) => {
+      const isArray = Array.isArray(queryOptions)
+      const isString = typeof queryOptions === 'string'
+      const isObject = !isArray && typeof queryOptions === 'object'
+
+      if (isString) this.removeById(queryOptions)
+      if (isArray) this.removeByArray(queryOptions)
+      if (isObject) this.removeByQuery(queryOptions)
+
+      return this
+    }
+
+    private updateByArray = (array: PartialDataListT | DataListT) => {
+      const newDocuments = [...this.data]
+      const totalUpdatesCount = array.length
+      let updatedCount = 0
+
+      const updatesMap = array.reduce((final, updateData) => {
+        const { id, ...updates } = updateData
+        final[id] = updates
         return final
-      }, {} as Partial<DataT>) as DataT
-    })
+      }, {} as any)
 
-    return listerine(dataWithSelectedKeys)
+      for (let index = 0; index < newDocuments.length; index++) {
+        const document = newDocuments[index]
+        const documentId = getDocumentId(document)
+        const updates = updatesMap[documentId]
+        const isMatch = !!updates
+        if (!isMatch) continue
+
+        updatedCount += 1
+        newDocuments[index] = { ...document, ...updates }
+        const areAllUpdated = totalUpdatesCount === updatedCount
+        if (areAllUpdated) break
+      }
+
+      this.data = newDocuments
+    }
+
+    private updateByObject = (item: PartialDataT | DataT) => {
+      const newDocuments = [...this.data]
+      const { id, ...updates } = item
+
+      for (let index = 0; index < newDocuments.length; index++) {
+        const document = newDocuments[index]
+        const documentId = getDocumentId(document)
+        const isMatch = documentId === id
+        if (!isMatch) continue
+
+        newDocuments[index] = { ...document, ...updates }
+        break
+      }
+
+      this.data = newDocuments
+    }
+
+    update = (arg: PartialDataT | DataT | PartialDataListT | DataListT) => {
+      const isArray = Array.isArray(arg)
+      const isObject = !isArray && typeof arg === 'object'
+
+      if (isArray) this.updateByArray(arg)
+      if (isObject) this.updateByObject(arg)
+      return this
+    }
+
+    // collection.query examples:
+    // collection.query('some-id')
+    // collection.query(['some-id', 'other-id'])
+    // collection.query(123)
+    // collection.query([123, 456])
+    // collection.query({ isActive: true })
+    // collection.query({ name$: { $startsWith: 'H' } })
+    // collection.query({ $and:  [...] })
+    // collection.query({ $or:  [...] })
+    // collection.query({ $or:  [{ $and: [...], age$: { $isBetween: [15, 35] } }] })
+    query = (queryOptions: QueryOptionsT | string | string[]) => {
+      const isArray = Array.isArray(queryOptions)
+      const isString = typeof queryOptions === 'string'
+      const isObject = !isArray && typeof queryOptions === 'object'
+      let queriedDocuments = [] as DataT[]
+
+      if (isString) queriedDocuments = this.getDocumentsWithIds([queryOptions])
+      if (isArray) queriedDocuments = this.getDocumentsWithIds(queryOptions)
+      if (isObject) queriedDocuments = this.queryByQuery(queryOptions)
+
+      return listerine<DataT>(queriedDocuments)
+    }
   }
 
-  function queryById(id: string | number) {
-    return data.filter((item: any) => item.id === id)
-  }
-
-  function queryByIds(ids: string[] | number[]) {
-    return data.filter(({ id }) => ids.includes(id as never))
-  }
-
-  function removeById(id: string | number) {
-    return data.filter((item: any) => item.id !== id)
-  }
-
-  function removeByIds(ids: string[] | number[]) {
-    return data.filter(({ id }) => !ids.includes(id as never))
-  }
-
-  function insert(items: DataT | DataT[]) {
-    const isArray = Array.isArray(items)
-    if (isArray) return listerine([...data, ...items])
-    return listerine([...data, items])
-  }
-
-  function remove(queryOptions: QueryOptionsT | string | string[] | number) {
-    const isString = typeof queryOptions === 'string'
-    const isNumber = typeof queryOptions === 'number'
-    const isArray = Array.isArray(queryOptions)
-
-    if (isString || isNumber) return listerine(removeById(queryOptions))
-    if (isArray) return listerine(removeByIds(queryOptions))
-
-    const tests = prepareQueryTests(queryOptions)
-    const nonMathes = data.filter((item) => !tests.every((test) => test(item)))
-    return listerine(nonMathes)
-  }
-
-  function query(queryOptions: QueryOptionsT | string | string[] | number) {
-    const isString = typeof queryOptions === 'string'
-    const isNumber = typeof queryOptions === 'number'
-    const isArray = Array.isArray(queryOptions)
-
-    if (isString || isNumber) return listerine(queryById(queryOptions))
-    if (isArray) return listerine(queryByIds(queryOptions))
-
-    const tests = prepareQueryTests(queryOptions)
-    const filtered = data.filter((item) => tests.every((test) => test(item)))
-    return listerine(filtered)
-  }
-
-  return {
-    data,
-    sort,
-    select,
-    query,
-    remove,
-    insert,
-  }
+  const collection = new ListerineCollection()
+  return collection
 }

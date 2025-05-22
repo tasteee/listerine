@@ -1,7 +1,14 @@
-type AnyObjectT = Record<string, any>
-type AnyFunctionT = (...args: any[]) => any
-type AnyArrayT = any[]
-type PrimitiveT = string | number | boolean | null | undefined
+import { filters } from './filters'
 
-type TestT<T> = (item: T) => boolean
-type QueryOptionsT = Record<string, any>
+export type AnyObjectT = Record<string, any>
+export type AnyFunctionT = (...args: any[]) => any
+export type AnyArrayT = any[]
+export type PrimitiveT = string | number | boolean | null | undefined
+
+export type QueryOptionsT = Record<string, any>
+export type TestT<DataT> = (item: DataT) => boolean
+export type FilterKeyT = keyof typeof filters
+
+export type ObjectWithId = {
+  id: string
+}

@@ -1,15 +1,8 @@
 // src/filters.ts
 import { get, isEqual, isSubsetOf, isSupersetOf } from './helpers'
-import { warnings } from './logs'
+import { logger } from './logs'
+import { TestT } from './global'
 
-/**
- * Type for filter test functions
- */
-export type TestT<DataT> = (item: DataT) => boolean
-
-/**
- * Checks if the value at item[key] equals the target string
- */
 const $matches = <DataT>(key: string, target: string): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -25,9 +18,6 @@ const $isNot = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => !$matches(key, value)(item)
 }
 
-/**
- * Checks if the value at item[key] deeply equals the value
- */
 const $equals = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -35,9 +25,6 @@ const $equals = <DataT>(key: string, value: any): TestT<DataT> => {
   }
 }
 
-/**
- * Checks if the value at item[key] does not deeply equal the value
- */
 const $doesNotEqual = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => !$equals(key, value)(item)
 }
@@ -83,8 +70,8 @@ const $isNotOneOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
     const isItemValueArray = Array.isArray(itemValue)
 
     if (isItemValueArray) {
-      const warningData = { item, itemValue, key, $isNotOneOfvalues: values }
-      warnings.arrayOneOfArray(warningData)
+      const warningData = { item, itemValue, key, $isNotOneOf: values }
+      logger.warnings.arrayOneOfArray(warningData)
       return !$isOneOf(key, values)(item)
     }
 
@@ -92,18 +79,10 @@ const $isNotOneOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
   }
 }
 
-/**
- * Checks if the value at item[key] does not equal the target string
- */
 const $doesNotMatch = <DataT>(key: string, target: string): TestT<DataT> => {
   return (item: DataT) => !$matches(key, target)(item)
 }
 
-// Numeric comparison filters
-
-/**
- * Checks if the value at item[key] is greater than the value
- */
 const $isGreaterThan = <DataT>(key: string, value: number): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -111,9 +90,6 @@ const $isGreaterThan = <DataT>(key: string, value: number): TestT<DataT> => {
   }
 }
 
-/**
- * Checks if the value at item[key] is less than the value
- */
 const $isLessThan = <DataT>(key: string, value: number): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -129,7 +105,7 @@ const $isGreaterThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT
 
     if (!isItemValueNumber) {
       const warningData = { item, itemValue, key, $isGreaterThanOrEqualTovalue: value }
-      warnings.numericComparisonOnNonNumber(warningData)
+      logger.warnings.numericComparisonOnNonNumber(warningData)
       return false
     }
 
@@ -137,9 +113,6 @@ const $isGreaterThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT
   }
 }
 
-/**
- * Checks if the value at item[key] is less than or equal to the value
- */
 const $isLessThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -147,7 +120,7 @@ const $isLessThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT> =
 
     if (!isItemValueNumber) {
       const warningData = { item, itemValue, key, $isLessThanOrEqualTovalue: value }
-      warnings.numericComparisonOnNonNumber(warningData)
+      logger.warnings.numericComparisonOnNonNumber(warningData)
       return false
     }
 
@@ -165,7 +138,7 @@ const $isNotGreaterThan = <DataT>(key: string, value: number): TestT<DataT> => {
 
     if (!isItemValueNumber) {
       const warningData = { item, itemValue, key, $isNotGreaterThanvalue: value }
-      warnings.numericComparisonOnNonNumber(warningData)
+      logger.warnings.numericComparisonOnNonNumber(warningData)
       return false
     }
 
@@ -173,9 +146,6 @@ const $isNotGreaterThan = <DataT>(key: string, value: number): TestT<DataT> => {
   }
 }
 
-/**
- * Checks if the value at item[key] is not less than the value
- */
 const $isNotLessThan = <DataT>(key: string, value: number): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -183,7 +153,7 @@ const $isNotLessThan = <DataT>(key: string, value: number): TestT<DataT> => {
 
     if (!isItemValueNumber) {
       const warningData = { item, itemValue, key, $isNotLessThanvalue: value }
-      warnings.numericComparisonOnNonNumber(warningData)
+      logger.warnings.numericComparisonOnNonNumber(warningData)
       return false
     }
 
@@ -191,9 +161,6 @@ const $isNotLessThan = <DataT>(key: string, value: number): TestT<DataT> => {
   }
 }
 
-/**
- * Checks if the value at item[key] is not greater than or equal to the value
- */
 const $isNotGreaterThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -201,7 +168,7 @@ const $isNotGreaterThanOrEqualTo = <DataT>(key: string, value: number): TestT<Da
 
     if (!isItemValueNumber) {
       const warningData = { item, itemValue, key, $isNotGreaterThanOrEqualTovalue: value }
-      warnings.numericComparisonOnNonNumber(warningData)
+      logger.warnings.numericComparisonOnNonNumber(warningData)
       return false
     }
 
@@ -209,9 +176,6 @@ const $isNotGreaterThanOrEqualTo = <DataT>(key: string, value: number): TestT<Da
   }
 }
 
-/**
- * Checks if the value at item[key] is not less than or equal to the value
- */
 const $isNotLessThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -219,7 +183,7 @@ const $isNotLessThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT
 
     if (!isItemValueNumber) {
       const warningData = { item, itemValue, key, $isNotLessThanOrEqualTovalue: value }
-      warnings.numericComparisonOnNonNumber(warningData)
+      logger.warnings.numericComparisonOnNonNumber(warningData)
       return false
     }
 
@@ -287,9 +251,6 @@ const $doesNotContain = <DataT>(key: string, value: any): TestT<DataT> => {
   }
 }
 
-/**
- * Checks if the array at item[key] contains all of the values
- */
 const $containsAll = <DataT>(key: string, values: any[]): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -298,9 +259,6 @@ const $containsAll = <DataT>(key: string, values: any[]): TestT<DataT> => {
   }
 }
 
-/**
- * Checks if the array at item[key] contains any of the values
- */
 const $containsSome = <DataT>(key: string, values: any[]): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -342,10 +300,6 @@ const $startsWith = <DataT>(key: string, value: any): TestT<DataT> => {
   }
 }
 
-/**
- * Checks if the string at item[key] ends with the value,
- * or if the array at item[key] ends with the array value
- */
 const $endsWith = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -372,23 +326,14 @@ const $endsWith = <DataT>(key: string, value: any): TestT<DataT> => {
   }
 }
 
-/**
- * Determines if the value at item[key] does not start with the specified value.
- */
 const $doesNotStartWith = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => !$startsWith(key, value)(item)
 }
 
-/**
- * Determines if the value at item[key] does not end with the specified value.
- */
 const $doesNotEndWith = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => !$endsWith(key, value)(item)
 }
 
-/**
- * Determines if the value at item[key] is longer than the specified length.
- */
 const $isLongerThan = <DataT>(key: string, length: number): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -396,9 +341,6 @@ const $isLongerThan = <DataT>(key: string, length: number): TestT<DataT> => {
   }
 }
 
-/**
- * Determines if the value at item[key] is shorter than the specified length.
- */
 const $isShorterThan = <DataT>(key: string, length: number): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -406,23 +348,14 @@ const $isShorterThan = <DataT>(key: string, length: number): TestT<DataT> => {
   }
 }
 
-/**
- * Determines if the value at item[key] is not longer than the specified length.
- */
 const $isNotLongerThan = <DataT>(key: string, length: number): TestT<DataT> => {
   return (item: DataT) => !$isLongerThan(key, length)(item)
 }
 
-/**
- * Determines if the value at item[key] is not shorter than the specified length.
- */
 const $isNotShorterThan = <DataT>(key: string, length: number): TestT<DataT> => {
   return (item: DataT) => !$isShorterThan(key, length)(item)
 }
 
-/**
- * Determines if the value at item[key] is not undefined or null.
- */
 const $exists = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -433,13 +366,7 @@ const $exists = <DataT>(key: string, value: any): TestT<DataT> => {
     return !isUndefined && !isNull
   }
 }
-/**
- * Corrected implementation for $isEmpty filter
- *
- * The current implementation has a bug: it always returns false for non-empty values
- * when value === false, rather than returning true (which would correctly indicate
- * that the value is NOT empty when we're checking isEmpty === false).
- */
+
 const $isEmpty = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -479,10 +406,6 @@ const $isNotBetween = <DataT>(key: string, [min, max]: [number, number]): TestT<
   return (item: DataT) => !$isBetween(key, [min, max])(item)
 }
 
-/**
- * Determines if the value at item[key] is undefined or null.
- * Opposite of $exists
- */
 const $doesNotExist = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => {
     const itemValue = get(item, key)
@@ -494,10 +417,6 @@ const $doesNotExist = <DataT>(key: string, value: any): TestT<DataT> => {
   }
 }
 
-/**
- * Determines if the value at item[key] is not empty.
- * Opposite of $isEmpty
- */
 const $isNotEmpty = <DataT>(key: string, value: any): TestT<DataT> => {
   return (item: DataT) => !$isEmpty(key, value)(item)
 }
@@ -508,8 +427,8 @@ const $isSubsetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
     const isItemValueString = typeof itemValue === 'string'
 
     if (isItemValueString) {
-      const warningData = { item, itemValue, key, $isSupersetOfvalues: values }
-      warnings.subsetOnArray(warningData)
+      const warningData = { item, itemValue, key, $isSupersetOf: values }
+      logger.warnings.subsetOnArray(warningData)
       return false
     }
 
@@ -526,7 +445,7 @@ const $isSupersetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
 
     if (isItemValueString) {
       const warningData = { item, itemValue, key, $isSupersetOfvalues: values }
-      warnings.supersetOnArray(warningData)
+      logger.warnings.supersetOnArray(warningData)
       return false
     }
 
@@ -581,3 +500,5 @@ export const filters = {
   $doesNotExist,
   $isNotEmpty,
 }
+
+export const FILTER_KEYS = Object.keys(filters)

@@ -7,7 +7,7 @@
     "esModuleInterop": true,
     "noEmit": true,
     "types": ["vitest/globals"],
-    "lib": ["ESNext", "dom"]
+    "lib": ["ES2023.Array", "DOM", "ESNext"]
   },
   "include": ["src", "tsup.config.ts", "vitest.config.ts"]
 }

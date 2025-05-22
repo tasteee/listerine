@@ -1,42 +1,126 @@
-import { FILTER_KEYS } from './constants'
-import { logger } from './logger'
+import { FILTER_KEYS } from './filters'
 
-const arrayOneOfArray = [
-  'do not use $isOneOf filter on arrays.',
-  '[0, 1, 2] $isOneOf [...etc] is not yet supported,',
-  'use $isSubsetOf or $isSupersetOf instead.',
-]
+const MESSAGING_PREFIX = '[listerine]'
+const WARNING_EMOJI = '⚠️'
+const ERROR_EMOJI = '⛔'
+const WARNING_PREFIX = `${WARNING_EMOJI} ${MESSAGING_PREFIX}`
+const ERROR_PREFIX = `${ERROR_EMOJI} ${MESSAGING_PREFIX}`
 
-const supersetOnArray = [
-  'do not use $isSubsetOf or $isSupersetOf filter on non-array values.',
-  'use $isOneOf instead to check if a singular value is one of many possible values.',
-]
+const messages = {
+  arrayOneOfArray: () => [
+    WARNING_PREFIX,
+    'do not use $isOneOf filter on arrays.',
+    '[0, 1, 2] $isOneOf [...etc] is not yet supported,',
+    'use $isSubsetOf or $isSupersetOf instead.',
+  ],
 
-const subsetOnArray = [
-  'do not use $isSupersetOf filter on non-array values.',
-  'use $isOneOf instead to check if a singular value is one of many possible values.',
-]
+  subsetOnArray: () => [
+    WARNING_PREFIX,
+    'do not use $isSubsetOf or $isSupersetOf filter on non-array values.',
+    'use $isOneOf instead to check if a singular value is one of many possible values.',
+  ],
 
-const numericComparisonOnNonNumber = [
-  'do not use numeric filters on non-number values.',
-  '(i.e $isGreaterThan, $isLessThan, $isGreaterThanOrEqualTo, $isLessThanOrEqualTo)',
-]
+  supersetOnArray: () => [
+    WARNING_PREFIX,
+    'do not use $isSupersetOf filter on non-array values.',
+    'use $isOneOf instead to check if a singular value is one of many possible values.',
+  ],
 
-export const warnings = {
-  arrayOneOfArray: logger.createWarning(arrayOneOfArray),
-  subsetOnArray: logger.createWarning(subsetOnArray),
-  supersetOnArray: logger.createWarning(supersetOnArray),
-  numericComparisonOnNonNumber: logger.createWarning(numericComparisonOnNonNumber),
+  numericComparisonOnNonNumber: () => [
+    WARNING_PREFIX,
+    'do not use numeric filters on non-number values.',
+    '(i.e $isGreaterThan, $isLessThan, $isGreaterThanOrEqualTo, $isLessThanOrEqualTo)',
+  ],
+
+  orRequiresArray: () => [ERROR_PREFIX, '$or operator requires an array of conditions'],
+
+  andRequiresArray: () => [ERROR_PREFIX, '$and operator requires an array of conditions'],
+
+  invalidFilterKey: (details: any) => [
+    ERROR_PREFIX,
+    `invalid filter key used: ${details.filterKey}`,
+    `Valid filter keys: ${FILTER_KEYS.join(' ')}`,
+  ],
+
+  removeWithArray: (details: any) => [
+    ERROR_PREFIX,
+    `invalid array argument passed: .remove(${JSON.stringify(details.input)})`,
+    'argument must be string[] | ObjectWithIdT[]',
+    'i.e collection.remove([{ id: "foo", ...etc }, { id: "bar", ...etc }])',
+    'or collection.remove(["foo", "bar"])',
+    'or collection.remove([123, 765])',
+  ],
+
+  invalidGetTarget: (details: any) => [
+    ERROR_PREFIX,
+    `invalid target passed to get (safe-get): ${JSON.stringify(details.target)}`,
+    'target must be either an array or an object',
+  ],
+
+  toStringConversion: (details: any) => [ERROR_PREFIX, ''],
+
+  toNumberConversion: (details: any) => [ERROR_PREFIX, ''],
 }
 
-export const validFilterKeys = FILTER_KEYS.map((key) => ` ${key}`)
-export const invalidFilterKey = ['valid filter keys are: ' + validFilterKeys]
+type MessagesKeyT = keyof typeof messages
 
-export const errors = {
-  invalidFilterKey: logger.createError(invalidFilterKey),
+const createError = (options: any) => {
+  const { message, ...details } = options
+  const error = new Error(message) as any
+  error.details = details
+  return error
 }
 
-export const logs = {
+const createLogger = (logType: 'log' | 'warn' | 'error') => {
+  return (messagesKey: MessagesKeyT) => {
+    return (details: any) => {
+      const message = messages[messagesKey](details).join('\n')
+      const isStrictMode = !!logger.strict
+      const isErrorLog = logType === 'error'
+      const shouldThrowError = isErrorLog && isStrictMode
+
+      // Output the message/details in the console
+      // no matter what type / mode we are in.
+      console[logType](message, { details })
+
+      // But if we are in strict mode and the type is
+      // error, we also want to THROW IT ON THE GROUND
+      if (shouldThrowError) {
+        throw createError({
+          message,
+          details,
+        })
+      }
+    }
+  }
+}
+
+const createChillLogger = createLogger('log')
+const createWarningLogger = createLogger('warn')
+const createErrorLogger = createLogger('error')
+
+const warnings = {
+  arrayOneOfArray: createWarningLogger('arrayOneOfArray'),
+  subsetOnArray: createWarningLogger('subsetOnArray'),
+  supersetOnArray: createWarningLogger('supersetOnArray'),
+  numericComparisonOnNonNumber: createWarningLogger('numericComparisonOnNonNumber'),
+}
+
+const errors = {
+  orRequiresArray: createErrorLogger('orRequiresArray'),
+  andRequiresArray: createErrorLogger('andRequiresArray'),
+  invalidFilterKey: createErrorLogger('invalidFilterKey'),
+  removeWithArray: createErrorLogger('removeWithArray'),
+  invalidGetTarget: createErrorLogger('invalidGetTarget'),
+  toStringConversion: createErrorLogger('toStringConversion'),
+  toNumberConversion: createErrorLogger('toNumberConversion'),
+}
+
+const logs = {}
+
+export const logger = {
+  strict: false,
+  logs,
   warnings,
   errors,
 }

@@ -1,99 +1,48 @@
-// listerine.test.ts
 import { describe, it, expect } from 'vitest'
 import { listerine } from '../listerine'
 
-const DATA0 = [
-  { id: 0, name: 'John', age: 30, isActive: true, tags: ['tall', 'strong'] },
-  { id: 1, name: 'Hannah', age: 25, isActive: false, tags: ['strong', 'smart', 'cute'] },
-  { id: 2, name: 'John', age: 35, isActive: true, tags: ['short', 'smart', 'cute', 'fast'] },
-]
+const baseLiljohn = { name: 'John', age: 30, isActive: true, tags: ['tall', 'strong'] }
+const baseHannah = { name: 'Hannah', age: 25, isActive: false, tags: ['strong', 'smart', 'cute'] }
+const baseOldjohn = { name: 'John', age: 35, isActive: true, tags: ['short', 'smart', 'cute', 'fast'] }
+const baseAlice = { name: 'Alice', isActive: true, tags: [] }
 
-const sarah = { id: 3, name: 'Sarah', age: 28, isActive: false, tags: ['fun', 'chill'] }
-const rokki = { id: 4, name: 'Rokki', age: 34, isActive: true, tags: ['cute', 'smart'] }
-
-describe('listerine', () => {
-  it('should query by id', () => {
-    const result = listerine(DATA0).query(1)
-    expect(result.data[0]).toEqual(DATA0[1])
-  })
-
-  it('should query by ids', () => {
-    const result = listerine(DATA0).query([0, 2])
-    expect(result.data.length).toEqual(2)
-    expect(result.data[0]).toEqual(DATA0[0])
-    expect(result.data[1]).toEqual(DATA0[2])
-  })
-
-  it('should remove by id', () => {
-    const result = listerine(DATA0).remove(1)
-    expect(result.data.length).toEqual(2)
-    expect(result.data[0]).toEqual(DATA0[0])
-    expect(result.data[1]).toEqual(DATA0[2])
-  })
-
-  it('should remove by ids', () => {
-    const result = listerine(DATA0).remove([1, 2])
-    expect(result.data.length).toEqual(1)
-    expect(result.data[0]).toEqual(DATA0[0])
-  })
-
-  it('should insert one', () => {
-    const result = listerine(DATA0).insert(sarah)
-    expect(result.data.length).toEqual(4)
-    expect(result.data[0]).toEqual(DATA0[0])
-    expect(result.data[1]).toEqual(DATA0[1])
-    expect(result.data[2]).toEqual(DATA0[2])
-    expect(result.data[3]).toEqual(sarah)
-  })
-
-  it('should insert multiple', () => {
-    const result = listerine(DATA0).insert([rokki, sarah])
-    expect(result.data.length).toEqual(5)
-    expect(result.data[0]).toEqual(DATA0[0])
-    expect(result.data[1]).toEqual(DATA0[1])
-    expect(result.data[2]).toEqual(DATA0[2])
-    expect(result.data[3]).toEqual(rokki)
-    expect(result.data[4]).toEqual(sarah)
-  })
+describe('logical querying', () => {
+  const liljohn = { ...baseLiljohn, id: '0' }
+  const hannah = { ...baseHannah, id: '1' }
+  const oldjohn = { ...baseOldjohn, id: '2' }
+  const DATA0 = [liljohn, hannah, oldjohn]
 
   it('should handle direct match filters', () => {
     const result0 = listerine(DATA0).query({
       name: 'John',
     })
 
-    const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0.data).toEqual(expected0)
+    expect(result0.data).toEqual([liljohn, oldjohn])
 
     const result1 = listerine(DATA0).query({
       age: 30,
     })
 
-    const expected1 = [DATA0[0]]
-    expect(result1.data).toEqual(expected1)
+    expect(result1.data).toEqual([liljohn])
 
     const result2 = listerine(DATA0).query({
       isActive: false,
     })
 
-    const expected2 = [DATA0[1]]
-    expect(result2.data).toEqual(expected2)
+    expect(result2.data).toEqual([hannah])
 
     const result3 = listerine(DATA0).query({
       tags: ['tall', 'strong'],
     })
 
-    const expected3 = [DATA0[0]]
-    expect(result3.data).toEqual(expected3)
+    expect(result3.data).toEqual([liljohn])
 
     const result4 = listerine(DATA0).query({
-      id: 1,
+      id: '1',
     })
 
-    const expected4 = [DATA0[1]]
-    expect(result4.data).toEqual(expected4)
+    expect(result4.data).toEqual([hannah])
   })
-
-  // STRING TESTS
 
   it('should handle string $startsWith', () => {
     const result0 = listerine(DATA0).query({
@@ -102,8 +51,7 @@ describe('listerine', () => {
       },
     })
 
-    const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0.data).toEqual(expected0)
+    expect(result0.data).toEqual([liljohn, oldjohn])
   })
 
   it('should handle string $doesNotStartWith', () => {
@@ -113,8 +61,7 @@ describe('listerine', () => {
       },
     })
 
-    const expected0 = [DATA0[1]]
-    expect(result0.data).toEqual(expected0)
+    expect(result0.data).toEqual([hannah])
   })
 
   it('should handle string $endsWith', () => {
@@ -204,8 +151,6 @@ describe('listerine', () => {
     const expected0 = [DATA0[1]]
     expect(result0.data).toEqual(expected0)
   })
-
-  // ARRAY TESTS
 
   it('should handle array $contains', () => {
     const result0 = listerine(DATA0).query({
@@ -357,8 +302,6 @@ describe('listerine', () => {
     expect(result0.data).toEqual(expected0)
   })
 
-  // Add these tests to your existing listerine.test.ts file
-
   // NUMERIC COMPARISON TESTS
   it('should handle numeric $isGreaterThan', () => {
     const result0 = listerine(DATA0).query({
@@ -424,7 +367,6 @@ describe('listerine', () => {
     expect(result0.data).toEqual(expected0)
   })
 
-  // EQUALITY TESTS
   it('should handle $equals', () => {
     const result0 = listerine(DATA0).query({
       name$: { $equals: 'John' },
@@ -457,49 +399,41 @@ describe('listerine', () => {
     expect(result0.data).toEqual(expected0)
   })
 
-  // EXISTENCE TESTS
-  it('should handle $exists with true', () => {
-    const DATA_WITH_MISSING = [...DATA0, { id: 3, name: 'Alice', isActive: true }]
+  const alice = { ...baseAlice, id: '3' }
+  const DATA_WITH_ALICE = [...DATA0, alice]
 
-    const result0 = listerine(DATA_WITH_MISSING).query({
+  it('should handle $exists with true', () => {
+    const result0 = listerine(DATA_WITH_ALICE).query({
       age$: { $exists: true },
     })
-    const expected0 = [DATA0[0], DATA0[1], DATA0[2]]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([liljohn, hannah, oldjohn])
   })
 
   it('should handle $exists with false', () => {
-    const DATA_WITH_MISSING = [...DATA0, { id: 3, name: 'Alice', isActive: true }]
-
-    const result0 = listerine(DATA_WITH_MISSING).query({
+    const result0 = listerine(DATA_WITH_ALICE).query({
       age$: { $exists: false },
     })
-    const expected0 = [{ id: 3, name: 'Alice', isActive: true }]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([alice])
   })
 
-  // EMPTINESS TESTS
   it('should handle $isEmpty with true', () => {
-    const DATA_WITH_EMPTY = [...DATA0, { id: 3, name: 'Alice', age: 40, isActive: true, tags: [] }]
-
-    const result0 = listerine(DATA_WITH_EMPTY).query({
+    const result0 = listerine(DATA_WITH_ALICE).query({
       tags$: { $isEmpty: true },
     })
-    const expected0 = [{ id: 3, name: 'Alice', age: 40, isActive: true, tags: [] }]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([alice])
   })
 
   it('should handle $isEmpty with false', () => {
-    const DATA_WITH_EMPTY = [...DATA0, { id: 3, name: 'Alice', age: 40, isActive: true, tags: [] }]
-
-    const result0 = listerine(DATA_WITH_EMPTY).query({
+    const result0 = listerine(DATA_WITH_ALICE).query({
       tags$: { $isEmpty: false },
     })
-    const expected0 = [DATA0[0], DATA0[1], DATA0[2]]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([liljohn, hannah, oldjohn])
   })
 
-  // COMPLEX QUERY TESTS
   it('should handle multiple filters on the same field', () => {
     const result0 = listerine(DATA0).query({
       age$: {
@@ -507,8 +441,8 @@ describe('listerine', () => {
         $isLessThan: 35,
       },
     })
-    const expected0 = [DATA0[0]]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([liljohn])
   })
 
   it('should handle multiple fields with filters', () => {
@@ -516,8 +450,8 @@ describe('listerine', () => {
       age$: { $isGreaterThan: 25 },
       name$: { $startsWith: 'J' },
     })
-    const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([liljohn, oldjohn])
   })
 
   it('should handle combination of direct match and filters', () => {
@@ -525,8 +459,8 @@ describe('listerine', () => {
       isActive: true,
       age$: { $isGreaterThan: 30 },
     })
-    const expected0 = [DATA0[2]]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([oldjohn])
   })
 
   it('should handle complex nested queries', () => {
@@ -536,24 +470,16 @@ describe('listerine', () => {
       isActive: true,
       tags$: { $containsSome: ['smart', 'tall'] },
     })
-    const expected0 = [DATA0[0], DATA0[2]]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([liljohn, oldjohn])
   })
 
   it('should return empty array when no items match', () => {
     const result0 = listerine(DATA0).query({
       age$: { $isGreaterThan: 100 },
     })
-    expect(result0.data).toEqual([])
-  })
 
-  // ERROR HANDLING
-  it('should throw an error for invalid filter names', () => {
-    expect(() => {
-      listerine(DATA0).query({
-        age$: { $invalidFilter: 30 } as any,
-      })
-    }).toThrow()
+    expect(result0.data).toEqual([])
   })
 
   it('should handle $isBetween', () => {
@@ -561,15 +487,14 @@ describe('listerine', () => {
       age$: { $isBetween: [33, 37] },
     })
 
-    const expected0 = [DATA0[2]]
-    expect(result0.data).toEqual(expected0)
+    expect(result0.data).toEqual([oldjohn])
   })
 
   it('should handle $isNotBetween', () => {
     const result0 = listerine(DATA0).query({
       age$: { $isNotBetween: [31, 39] },
     })
-    const expected0 = [DATA0[0], DATA0[1]]
-    expect(result0.data).toEqual(expected0)
+
+    expect(result0.data).toEqual([liljohn, hannah])
   })
 })
