@@ -64,33 +64,18 @@ const messages = {
 
 type MessagesKeyT = keyof typeof messages
 
-const createError = (options: any) => {
-  const { message, ...details } = options
-  const error = new Error(message) as any
-  error.details = details
-  return error
-}
+// const createError = (options: any) => {
+//   const { message, ...details } = options
+//   const error = new Error(message) as any
+//   error.details = details
+//   return error
+// }
 
 const createLogger = (logType: 'log' | 'warn' | 'error') => {
   return (messagesKey: MessagesKeyT) => {
     return (details: any) => {
       const message = messages[messagesKey](details).join('\n')
-      const isStrictMode = !!logger.strict
-      const isErrorLog = logType === 'error'
-      const shouldThrowError = isErrorLog && isStrictMode
-
-      // Output the message/details in the console
-      // no matter what type / mode we are in.
       console[logType](message, { details })
-
-      // But if we are in strict mode and the type is
-      // error, we also want to THROW IT ON THE GROUND
-      if (shouldThrowError) {
-        throw createError({
-          message,
-          details,
-        })
-      }
     }
   }
 }
@@ -119,7 +104,6 @@ const errors = {
 const logs = {}
 
 export const logger = {
-  strict: false,
   logs,
   warnings,
   errors,
