@@ -4,6 +4,7 @@ import { logger } from './logs'
 import { get } from './helpers'
 
 const LOGICAL_OPERATOR_KEYS = ['$or', '$and']
+
 const LOGICAL_OPERATOR_CONFIGS = {
   or: {
     optionsKey: '$or',
@@ -389,7 +390,7 @@ class ListerineCollection<IdKeyT extends string = 'id', DataT extends Record<IdK
     return this
   }
 
-  private updateByArray = (array: Partial<DataT>[] | DataT[]) => {
+  private updateByArray = (array: Partial<DataT>[]) => {
     const newDocuments = [...this.data]
     const totalUpdatesCount = array.length
     let updatedCount = 0
@@ -420,7 +421,7 @@ class ListerineCollection<IdKeyT extends string = 'id', DataT extends Record<IdK
     this.data = newDocuments
   }
 
-  private updateByObject = (item: Partial<DataT> | DataT) => {
+  private updateByObject = (item: Partial<DataT>) => {
     const newDocuments = [...this.data]
     const documentId = this.getDocumentId(item as DataT)
     const { [this.idKey]: _, ...updates } = item
@@ -438,7 +439,7 @@ class ListerineCollection<IdKeyT extends string = 'id', DataT extends Record<IdK
     this.data = newDocuments
   }
 
-  update = (arg: Partial<DataT> | DataT | Partial<DataT>[] | DataT[]) => {
+  update = (arg: Partial<DataT> | Partial<DataT>[]) => {
     const isArray = Array.isArray(arg)
     const isObject = !isArray && typeof arg === 'object'
 

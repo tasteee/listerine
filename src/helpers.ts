@@ -1,55 +1,6 @@
 import safeGet from 'just-safe-get'
 import { logger } from './logs'
 
-export const verifyNumberType = (target: unknown) => {
-  const targetType = typeof target
-  const isNumberType = targetType === 'number'
-  const isNumber = !Number.isNaN(target)
-  const isNotNaN = isNumber && isNumberType
-  return isNumberType && isNotNaN
-}
-
-export const getTypeChecks = (target: unknown) => {
-  const results = {} as any
-
-  const targetType = typeof target
-  results.isTruthy = !!target
-  results.isBoolean = targetType === 'boolean'
-  results.isNull = target === null
-  results.isUndefined = target === undefined
-  results.isNumber = verifyNumberType(target)
-  results.isDate = target instanceof Date
-  results.isRegex = target instanceof RegExp
-  const isObjectType = typeof target === 'object'
-  const prototype = Object.getPrototypeOf(target)
-  const isPrototypeNull = prototype === null
-  const isObjectPrototype = prototype === Object.prototype
-  const isPrototypeObjectLike = isObjectPrototype || isPrototypeNull
-  results.isObject = isObjectType && isPrototypeObjectLike
-
-  return results
-}
-
-export const verifyPlainObject = (target: unknown) => {
-  const isObjectType = typeof target === 'object'
-  const isTruthy = !!target
-  if (!isTruthy) return false
-  if (!isObjectType) return false
-
-  const isArray = Array.isArray(target)
-  if (isArray) return false
-
-  const isDate = target instanceof Date
-  const isRegex = target instanceof RegExp
-  if (isDate) return false
-  if (isRegex) return false
-
-  const prototype = Object.getPrototypeOf(target)
-  const isPrototypeNull = prototype === null
-  const isObjectPrototype = prototype === Object.prototype
-  return isObjectPrototype || isPrototypeNull
-}
-
 export const get = (target: any, key: string) => {
   return safeGet(target, key)
 }

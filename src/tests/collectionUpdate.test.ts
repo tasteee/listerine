@@ -15,4 +15,14 @@ describe('collection.update', () => {
     const queriedCollection = collection.query('420')
     expect(queriedCollection.data.first).toEqual(updatedHannah)
   })
+
+  it('updates multiple documents', () => {
+    const collection = listerine(DATA)
+    const updatedHannah = { ...hannah, name: 'hannah roksanne' }
+    const updatedLily = { ...lily, name: 'lily chowley' }
+    collection.update([updatedHannah, updatedLily])
+    const queriedCollection = collection.query(['420', '765'])
+    expect(queriedCollection.data.first).toEqual(updatedHannah)
+    expect(queriedCollection.data.last).toEqual(updatedLily)
+  })
 })
