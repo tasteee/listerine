@@ -1,4 +1,3 @@
-// src/filters.ts
 import { get, isEqual, isSubsetOf, isSupersetOf } from './helpers'
 import { logger } from './logs'
 import { TestT } from './global'

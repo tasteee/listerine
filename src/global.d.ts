@@ -5,10 +5,22 @@ export type AnyFunctionT = (...args: any[]) => any
 export type AnyArrayT = any[]
 export type PrimitiveT = string | number | boolean | null | undefined
 
-export type QueryOptionsT = Record<string, any>
+// TODO: Beef up QueryConfigT to give the dev
+// type safety and hints when building query configs.
+export type QueryConfigT = Record<string, any>
+
 export type TestT<DataT> = (item: DataT) => boolean
 export type FilterKeyT = keyof typeof filters
 
-export type ObjectWithId = {
-  id: string
+export type ObjectWithId<IdKeyT extends string = 'id'> = {
+  [K in IdKeyT]: string
+}
+
+export type EnhancedDataT<DataT> = DataT[] & {
+  first: DataT
+  last: DataT
+}
+
+export type OptionsT<IdKeyT extends string = 'id'> = {
+  idKey?: IdKeyT
 }

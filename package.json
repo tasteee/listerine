@@ -1,6 +1,6 @@
 {
   "name": "listerine",
-  "version": "1.0.0-beta.11",
+  "version": "1.0.0-beta.12",
   "description": "Lightweight, Mongo-inspired, TypeScript-first approach to managing / querying arrays of complex data using an intuitive, developer-focused API.",
   "author": "rokki <hannahroksanne@gmail.com>",
   "license": "MIT",
@@ -29,7 +29,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc",
     "verify": "npm run typecheck && npm run test && npm run build",
-    "prepublishOnly": "npm run verify",
+    "prepublishOnly": "npm run build:readme && npm run verify",
     "build:readme": "npx @appnest/readme generate --config ./docs/blueprint.json --input ./docs/blueprint.md"
   },
   "devDependencies": {

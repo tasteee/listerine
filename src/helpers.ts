@@ -1,4 +1,3 @@
-// src/helpers.ts
 import safeGet from 'just-safe-get'
 import { logger } from './logs'
 
@@ -52,11 +51,6 @@ export const verifyPlainObject = (target: unknown) => {
 }
 
 export const get = (target: any, key: string) => {
-  // const targetType = typeof target
-  // const isArray = Array.isArray(target)
-  // const isObject = !isArray && targetType === 'object'
-  // const isInvalidTarget = !isArray && !isObject
-  // if (isInvalidTarget) logger.errors.invalidGetTarget({ target, key, targetType })
   return safeGet(target, key)
 }
 

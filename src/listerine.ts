@@ -1,26 +1,15 @@
-import { ObjectWithId, QueryOptionsT, TestT, FilterKeyT } from './global'
+import { QueryConfigT, OptionsT, EnhancedDataT, TestT, FilterKeyT } from './global'
 import { filters, FILTER_KEYS } from './filters'
 import { logger } from './logs'
-import get from 'just-safe-get'
-
-type EnhancedDataT<DataT> = DataT[] & {
-  first: DataT
-  last: DataT
-}
-
-type OptionsT = {
-  idKey: string
-}
+import { get } from './helpers'
 
 const LOGICAL_OPERATOR_KEYS = ['$or', '$and']
-
 const LOGICAL_OPERATOR_CONFIGS = {
   or: {
     optionsKey: '$or',
     testMethodKey: 'some',
     arrayError: logger.errors.orRequiresArray,
   },
-
   and: {
     optionsKey: '$and',
     testMethodKey: 'every',
@@ -31,9 +20,8 @@ const LOGICAL_OPERATOR_CONFIGS = {
 function createLogicalOperatorHandler(operatorKey: 'or' | 'and') {
   const config = LOGICAL_OPERATOR_CONFIGS[operatorKey]
   const testMethodKey = config.testMethodKey as 'some' | 'every'
-
-  return <DataT>(queryOptions: QueryOptionsT) => {
-    const conditions = queryOptions[config.optionsKey] as QueryOptionsT[]
+  return <DataT>(queryOptions: QueryConfigT) => {
+    const conditions = queryOptions[config.optionsKey] as QueryConfigT[]
     const isArray = Array.isArray(conditions)
     if (!isArray) throw config.arrayError(queryOptions)
 
@@ -44,7 +32,6 @@ function createLogicalOperatorHandler(operatorKey: 'or' | 'and') {
         return tests.every((test) => test(item))
       })
     }
-
     return [test]
   }
 }
@@ -52,7 +39,7 @@ function createLogicalOperatorHandler(operatorKey: 'or' | 'and') {
 const handleOperatorOr = createLogicalOperatorHandler('or')
 const handleOperatorAnd = createLogicalOperatorHandler('and')
 
-export function prepareQueryTests<DataT>(queryOptions: QueryOptionsT, prefix: string = ''): TestT<DataT>[] {
+export function prepareQueryTests<DataT>(queryOptions: QueryConfigT, prefix: string = ''): TestT<DataT>[] {
   const tests: TestT<DataT>[] = []
   const hasOperatorOr = '$or' in queryOptions
   const hasOperatorAnd = '$and' in queryOptions
@@ -102,7 +89,6 @@ export function prepareQueryTests<DataT>(queryOptions: QueryOptionsT, prefix: st
     }
 
     const filterOptions = value as Record<string, any>
-
     for (const filterKey in filterOptions) {
       const filterValue = filterOptions[filterKey]
       const isValidFilterKey = FILTER_KEYS.includes(filterKey)
@@ -143,31 +129,33 @@ function checkIfNonArrayObject(target: any) {
   return !isArray && isObject
 }
 
-const DEFAULT_OPTIONS = { idKey: 'id' }
-
-function getOptions(configOptions: Partial<OptionsT>) {
-  const options = { ...configOptions }
-  options.idKey = options.idKey || DEFAULT_OPTIONS.idKey
-  return options as OptionsT
+const DEFAULT_OPTIONS = {
+  idKey: 'id' as const,
 }
 
-type DataWithoutIdT<DataT> = Omit<DataT, 'id'>
-type SortFunctionT<DataT> = (a: DataT, b: DataT) => number
+function getOptions<IdKeyT extends string>(configOptions: Partial<OptionsT<IdKeyT>>): OptionsT<IdKeyT> {
+  const options = { ...configOptions }
+  options.idKey = (options.idKey || DEFAULT_OPTIONS.idKey) as IdKeyT
+  return options as OptionsT<IdKeyT>
+}
 
+type DataWithoutIdT<DataT, IdKeyT extends keyof DataT> = Omit<DataT, IdKeyT>
+type SortFunctionT<DataT> = (a: DataT, b: DataT) => number
 type SortOptionsT<DataT> = {
   key: keyof DataT
   direction?: 'ascending' | 'descending'
 }
 
-const ENHANCED_EMPTY_ARRAY = createEnhancedData([])
+class ListerineCollection<IdKeyT extends string = 'id', DataT extends Record<IdKeyT, string> = Record<IdKeyT, string>> {
+  private enhancedData: EnhancedDataT<DataT>
+  private options: OptionsT<IdKeyT>
+  private idKey: IdKeyT
 
-class ListerineCollection<DataT extends ObjectWithId> {
-  private enhancedData: EnhancedDataT<DataT> = ENHANCED_EMPTY_ARRAY
-  private options: OptionsT = DEFAULT_OPTIONS
-
-  constructor(target: DataT[], options?: Partial<OptionsT>) {
+  constructor(target: DataT[], options?: OptionsT<IdKeyT>) {
+    this.idKey = (options?.idKey ?? 'id') as IdKeyT
     this.options = getOptions(options || {})
     this.data = target
+    this.enhancedData = this.data
   }
 
   set data(newData: DataT[]) {
@@ -178,13 +166,12 @@ class ListerineCollection<DataT extends ObjectWithId> {
     return this.enhancedData
   }
 
-  private getDocumentId = (document: ObjectWithId) => {
-    return get(document, this.options.idKey)
+  private getDocumentId = (document: DataT): string => {
+    return get(document, this.idKey as string) as string
   }
 
   private getSortedData = (key: keyof DataT, direction?: string) => {
     const data = this.data as DataT[]
-
     return data.toSorted((a: DataT, b: DataT) => {
       const aValue = a[key]
       const bValue = b[key]
@@ -223,7 +210,7 @@ class ListerineCollection<DataT extends ObjectWithId> {
   }
 
   // Perform a query using a query object.
-  private queryByQuery = (queryOptions: QueryOptionsT) => {
+  private queryByQuery = (queryOptions: QueryConfigT) => {
     const tests = prepareQueryTests(queryOptions)
     return this.getDocumentsThatPass(tests)
   }
@@ -242,7 +229,7 @@ class ListerineCollection<DataT extends ObjectWithId> {
   // Get the ids from the array of objects and then
   // update this.data to remove all documents with
   // corresponding ids
-  private removeByObjects = (items: ObjectWithId[]) => {
+  private removeByObjects = (items: DataT[]) => {
     const ids = items.map(this.getDocumentId)
     this.removeByIds(ids)
   }
@@ -270,7 +257,7 @@ class ListerineCollection<DataT extends ObjectWithId> {
   }
 
   // Remove all documents that are matched by a query object.
-  private removeByQuery = (queryOptions: QueryOptionsT) => {
+  private removeByQuery = (queryOptions: QueryConfigT) => {
     const tests = prepareQueryTests(queryOptions)
     this.data = this.getDocumentsThatFail(tests)
   }
@@ -291,34 +278,28 @@ class ListerineCollection<DataT extends ObjectWithId> {
     if (ids.length <= 10) {
       const documents = []
       const idsCount = ids.length
-
       for (const document of this.data) {
         const documentId = this.getDocumentId(document)
         const isMatch = ids.includes(documentId)
         if (!isMatch) continue
-
         documents.push(document)
         const docsCount = documents.length
         const areAllFound = docsCount === idsCount
         if (areAllFound) break
       }
-
       return documents
     }
 
     // For larger data sets, use Set for O(1) lookups.
     const idSet = new Set(ids)
     const documents = []
-
     for (const document of this.data) {
       const documentId = this.getDocumentId(document)
       const isMatch = idSet.has(documentId)
       if (isMatch) documents.push(document)
-
       // Early bailout when we've found all requested documents
       if (documents.length === ids.length) break
     }
-
     return documents
   }
 
@@ -328,61 +309,52 @@ class ListerineCollection<DataT extends ObjectWithId> {
       const totalDocuments = this.data.length
       const idsCount = ids.length
       const remainingDocsCount = totalDocuments - idsCount
-
       for (const document of this.data) {
         const documentId = this.getDocumentId(document)
         const isMatch = !ids.includes(documentId)
         if (!isMatch) continue
-
         documents.push(document)
         const docsCount = documents.length
         const areAllFound = docsCount === remainingDocsCount
         if (areAllFound) break
       }
-
       return documents
     }
 
     // For larger data sets, use Set for O(1) lookups.
     const idSet = new Set(ids)
     const documents = []
-
     for (const document of this.data) {
       const documentId = this.getDocumentId(document)
       const isMatch = !idSet.has(documentId)
       if (isMatch) documents.push(document)
     }
-
     return documents
   }
 
   // When inserting a new document(s), if no id is provided,
   // listerine generates and applies one.
-  private getDocumentWithIdEnsured = (item: DataWithoutIdT<DataT> | DataT) => {
+  private getDocumentWithIdEnsured = (item: DataWithoutIdT<DataT, IdKeyT> | DataT): DataT => {
     const itemId = this.getDocumentId(item as DataT)
     const isIdValid = typeof itemId === 'string'
     if (isIdValid) return item as DataT
+
     const id = crypto.randomUUID()
-    const idKey = this.options.idKey
-    const itemWithId = { ...item, [idKey]: id }
-    return itemWithId as DataT
+    const idKey = this.options.idKey!
+    const itemWithId = { ...item, [idKey]: id } as DataT
+    return itemWithId
   }
 
-  private insertMultiple = (items: DataWithoutIdT<DataT>[] | DataT[]) => {
+  private insertMultiple = (items: (DataWithoutIdT<DataT, IdKeyT> | DataT)[]) => {
     const documents = items.map(this.getDocumentWithIdEnsured)
     this.data = [...this.data, ...documents]
   }
 
-  private insertOne = (item: DataWithoutIdT<DataT> | DataT) => {
+  private insertOne = (item: DataWithoutIdT<DataT, IdKeyT> | DataT) => {
     const document = this.getDocumentWithIdEnsured(item)
     this.data = [...this.data, document]
   }
 
-  // collection.sort examples:
-  // collection.sort('name') // ascending by default
-  // collection.sort({ key: 'name' }) // ascending by default
-  // collection.sort({ key: 'name', direction: 'descending' })
-  // collection.sort((a, b) => a.name.localeCompare(b.name))
   sort = (options: SortFunctionT<DataT> | SortOptionsT<DataT> | string) => {
     const isString = typeof options === 'string'
     const isFunction = typeof options === 'function'
@@ -391,32 +363,21 @@ class ListerineCollection<DataT extends ObjectWithId> {
     if (isString) this.sortByKey(options as keyof DataT)
     if (isFunction) this.sortByFunction(options as SortFunctionT<DataT>)
     if (isObject) this.sortByOptions(options)
+
     return this
   }
 
-  // collection.insert examples:
-  // collection.insert({ id: '123', name: 'hannah' })
-  // collection.insert([{ id: '123', name: 'hannah' }, { id: '234', name: 'taylor' }])
-  insert = (items: DataWithoutIdT<DataT> | DataWithoutIdT<DataT>[] | DataT | DataT[]) => {
+  insert = (items: DataWithoutIdT<DataT, IdKeyT> | (DataWithoutIdT<DataT, IdKeyT> | DataT)[] | DataT | DataT[]) => {
     const isArray = Array.isArray(items)
     const isObject = !isArray && typeof items === 'object'
 
     if (isArray) this.insertMultiple(items)
     if (isObject) this.insertOne(items)
+
     return this
   }
 
-  // collection.remove examples:
-  // collection.remove('some-id')
-  // collection.remove(['some-id', 'other-id'])
-  // collection.remove([{ id: 'some-id', ...unused }])
-  // collection.remove([{ id: 'some-id', ...unused }, { id: 'other-id', ...unused }])
-  // collection.remove({ isActive: true })
-  // collection.remove({ name$: { $startsWith: 'H' } })
-  // collection.remove({ $and:  [...] })
-  // collection.remove({ $or:  [...] })
-  // collection.remove({ $or:  [{ $and: [...], age$: { $isBetween: [15, 35] } }] })
-  remove = (queryOptions: QueryOptionsT | string | string[]) => {
+  remove = (queryOptions: QueryConfigT | string | string[]) => {
     const isArray = Array.isArray(queryOptions)
     const isString = typeof queryOptions === 'string'
     const isObject = !isArray && typeof queryOptions === 'object'
@@ -433,11 +394,15 @@ class ListerineCollection<DataT extends ObjectWithId> {
     const totalUpdatesCount = array.length
     let updatedCount = 0
 
-    const updatesMap = array.reduce((final, updateData) => {
-      const { id, ...updates } = updateData
-      final[id] = updates
-      return final
-    }, {} as any)
+    const updatesMap = array.reduce(
+      (final, updateData) => {
+        const documentId = this.getDocumentId(updateData as DataT)
+        const { [this.idKey]: _, ...updates } = updateData
+        final[documentId] = updates
+        return final
+      },
+      {} as Record<string, any>,
+    )
 
     for (let index = 0; index < newDocuments.length; index++) {
       const document = newDocuments[index]
@@ -457,12 +422,13 @@ class ListerineCollection<DataT extends ObjectWithId> {
 
   private updateByObject = (item: Partial<DataT> | DataT) => {
     const newDocuments = [...this.data]
-    const { id, ...updates } = item
+    const documentId = this.getDocumentId(item as DataT)
+    const { [this.idKey]: _, ...updates } = item
 
     for (let index = 0; index < newDocuments.length; index++) {
       const document = newDocuments[index]
-      const documentId = this.getDocumentId(document)
-      const isMatch = documentId === id
+      const currentDocumentId = this.getDocumentId(document)
+      const isMatch = currentDocumentId === documentId
       if (!isMatch) continue
 
       newDocuments[index] = { ...document, ...updates }
@@ -478,34 +444,37 @@ class ListerineCollection<DataT extends ObjectWithId> {
 
     if (isArray) this.updateByArray(arg)
     if (isObject) this.updateByObject(arg)
+
     return this
   }
 
-  // collection.query examples:
-  // collection.query('some-id')
-  // collection.query(['some-id', 'other-id'])
-  // collection.query(123)
-  // collection.query([123, 456])
-  // collection.query({ isActive: true })
-  // collection.query({ name$: { $startsWith: 'H' } })
-  // collection.query({ $and:  [...] })
-  // collection.query({ $or:  [...] })
-  // collection.query({ $or:  [{ $and: [...], age$: { $isBetween: [15, 35] } }] })
-  query = (queryOptions: QueryOptionsT | string | string[]) => {
+  query = (queryOptions: QueryConfigT | string | string[]) => {
     const isArray = Array.isArray(queryOptions)
     const isString = typeof queryOptions === 'string'
     const isObject = !isArray && typeof queryOptions === 'object'
+
     let queriedDocuments = [] as DataT[]
 
     if (isString) queriedDocuments = this.getDocumentsWithIds([queryOptions])
     if (isArray) queriedDocuments = this.getDocumentsWithIds(queryOptions)
     if (isObject) queriedDocuments = this.queryByQuery(queryOptions)
 
-    return listerine<DataT>(queriedDocuments)
+    return listerine<IdKeyT, DataT>(queriedDocuments, this.options)
   }
 }
 
-export const listerine = <DataT extends ObjectWithId>(target: DataT[], options?: OptionsT) => {
-  const collection = new ListerineCollection<DataT>(target, options)
+// Function overloads for better type inference
+export function listerine<DataT extends Record<'id', string>>(target: DataT[], options?: OptionsT<'id'>): ListerineCollection<'id', DataT>
+
+export function listerine<IdKeyT extends string, DataT extends Record<IdKeyT, string>>(
+  target: DataT[],
+  options?: OptionsT<IdKeyT>, // Remove the & { idKey: IdKeyT } requirement
+): ListerineCollection<IdKeyT, DataT>
+
+export function listerine<IdKeyT extends string = 'id', DataT extends Record<IdKeyT, string> = Record<IdKeyT, string>>(
+  target: DataT[],
+  options?: OptionsT<IdKeyT>,
+): ListerineCollection<IdKeyT, DataT> {
+  const collection = new ListerineCollection<IdKeyT, DataT>(target, options)
   return collection
 }
