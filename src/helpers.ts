@@ -1,9 +1,6 @@
 // src/helpers.ts
 import safeGet from 'just-safe-get'
-import toNumber from 'strnum'
 import { logger } from './logs'
-
-export { toNumber }
 
 export const verifyNumberType = (target: unknown) => {
   const targetType = typeof target
