@@ -1,2 +1,2 @@
+export type { QueryT, TestT, FilterKeyT, RecordWithIdT } from './listerine'
 export { listerine } from './listerine'
-export type { QueryConfigT, OptionsT, EnhancedDataT, TestT, FilterKeyT } from './global'

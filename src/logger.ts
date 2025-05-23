@@ -1,4 +1,4 @@
-import { FILTER_KEYS } from './filters'
+import { FILTER_KEYS } from './listerine'
 
 const MESSAGING_PREFIX = '[listerine]'
 const WARNING_EMOJI = '⚠️'
@@ -7,12 +7,7 @@ const WARNING_PREFIX = `${WARNING_EMOJI} ${MESSAGING_PREFIX}`
 const ERROR_PREFIX = `${ERROR_EMOJI} ${MESSAGING_PREFIX}`
 
 const messages = {
-  arrayOneOfArray: () => [
-    WARNING_PREFIX,
-    'do not use $isOneOf filter on arrays.',
-    '[0, 1, 2] $isOneOf [...etc] is not yet supported,',
-    'use $isSubsetOf or $isSupersetOf instead.',
-  ],
+  arrayOneOfArray: () => [WARNING_PREFIX, 'do not use $isOneOf filter on arrays.', '[0, 1, 2] $isOneOf [...etc] is not yet supported,', 'use $isSubsetOf or $isSupersetOf instead.'],
 
   subsetOnArray: () => [
     WARNING_PREFIX,
@@ -20,11 +15,7 @@ const messages = {
     'use $isOneOf instead to check if a singular value is one of many possible values.',
   ],
 
-  supersetOnArray: () => [
-    WARNING_PREFIX,
-    'do not use $isSupersetOf filter on non-array values.',
-    'use $isOneOf instead to check if a singular value is one of many possible values.',
-  ],
+  supersetOnArray: () => [WARNING_PREFIX, 'do not use $isSupersetOf filter on non-array values.', 'use $isOneOf instead to check if a singular value is one of many possible values.'],
 
   numericComparisonOnNonNumber: () => [
     WARNING_PREFIX,
@@ -36,11 +27,7 @@ const messages = {
 
   andRequiresArray: () => [ERROR_PREFIX, '$and operator requires an array of conditions'],
 
-  invalidFilterKey: (details: any) => [
-    ERROR_PREFIX,
-    `invalid filter key used: ${details.filterKey}`,
-    `Valid filter keys: ${FILTER_KEYS.join(' ')}`,
-  ],
+  invalidFilterKey: (details: any) => [ERROR_PREFIX, `invalid filter key used: ${details.filterKey}`, `Valid filter keys: ${FILTER_KEYS.join(' ')}`],
 
   removeWithArray: (details: any) => [
     ERROR_PREFIX,
@@ -51,11 +38,7 @@ const messages = {
     'or collection.remove([123, 765])',
   ],
 
-  invalidGetTarget: (details: any) => [
-    ERROR_PREFIX,
-    `invalid target passed to get (safe-get): ${JSON.stringify(details.target)}`,
-    'target must be either an array or an object',
-  ],
+  invalidGetTarget: (details: any) => [ERROR_PREFIX, `invalid target passed to get (safe-get): ${JSON.stringify(details.target)}`, 'target must be either an array or an object'],
 
   toStringConversion: (details: any) => [ERROR_PREFIX, ''],
 

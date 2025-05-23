@@ -1,8 +1,569 @@
-import { QueryConfigT, OptionsT, EnhancedDataT, TestT, FilterKeyT } from './global'
-import { filters, FILTER_KEYS } from './filters'
-import { logger } from './logs'
-import { get } from './helpers'
+import safeGet from 'just-safe-get'
+import { logger } from './logger'
 
+// TODO: Beef up QueryT to give the dev
+// type safety and hints when building query configs.
+// For example, collection.find({ isActive: true })
+// should make TS say "HEY THAT COLLECTION'S TYPE"
+// doesnt have isActive property... or { age$: { $equals: 25 } }
+// would alert the dev if the collection's data type did
+// not have age property or if age is not a number...
+
+export type QueryT = Record<string, any>
+export type TestT<DataT> = (item: DataT) => boolean
+export type FilterKeyT = keyof typeof filters
+export type RecordWithIdT = Record<'id', string>
+
+const getValue = (target: any, key: string) => {
+  return safeGet(target, key)
+}
+
+const isSubsetOf = (subset: any[], superset: any[]): boolean => {
+  return subset.every((element) => superset.includes(element))
+}
+
+const isSupersetOf = (target: any[], values: any[]): boolean => {
+  return values.every((value) => target.includes(value))
+}
+
+const isEqual = (a: any, b: any): boolean => {
+  if (a === b) return true
+
+  // If one is null/undefined but not both (we already checked a === b)
+  if (a === null || b === null || a === undefined || b === undefined) return false
+
+  const isArrayA = Array.isArray(a)
+  const isArrayB = Array.isArray(b)
+
+  // Handle arrays
+  if (isArrayA && isArrayB) {
+    if (a.length !== b.length) return false
+    return (a as any[]).every((value, index) => {
+      return isEqual(value, (b as any[])[index])
+    })
+  }
+
+  // Handle objects (but not arrays, which we've already handled)
+  const isObjectA = typeof a === 'object' && !isArrayA
+  const isObjectB = typeof b === 'object' && !isArrayB
+
+  if (isObjectA && isObjectB) {
+    const keysA = Object.keys(a as object)
+    const keysB = Object.keys(b as object)
+
+    if (keysA.length !== keysB.length) return false
+
+    return keysA.every((key) => {
+      return isEqual((a as any)[key], (b as any)[key])
+    })
+  }
+
+  // Different types or primitives that didn't match the === check above
+  return false
+}
+
+const $matches = <DataT>(key: string, target: string): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    return itemValue === target
+  }
+}
+
+const $is = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => $matches(key, value)(item)
+}
+
+const $isNot = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => !$matches(key, value)(item)
+}
+
+const $equals = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    return isEqual(itemValue, value)
+  }
+}
+
+const $doesNotEqual = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => !$equals(key, value)(item)
+}
+
+// ex data: [{ food: 'burger' }, { food: 'pizza' }, { food: 'salad' }]
+// { food$: { $isOneOf: ['burger', 'pizza'] } }
+// would match: [{ food: 'burger' }, { food: 'pizza' }]
+const $isOneOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    // Check if the item's value is one of the values in the array
+    return values.some((value) => isEqual(itemValue, value))
+  }
+}
+
+// 1. check to see if item[key] (array) is a subset of values array.
+// 2. check to see if item[key] (single value) is in values array.
+const $isIn = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+
+    // If itemValue is not an array, check if it's included in values
+    if (!Array.isArray(itemValue)) {
+      return values.includes(itemValue)
+    }
+
+    // If itemValue is an array, check if it's a subset of values
+    // (all elements in itemValue are present in values)
+    const passes = isSubsetOf(itemValue, values)
+    return passes
+  }
+}
+
+// 1. check to see if item[key] (array) is not a subset of values array.
+// 2. check to see if item[key] (single value) is not in values array.
+const $isNotIn = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  return (item: DataT) => !$isIn(key, values)(item)
+}
+
+// 1. check to see if item[key] (single value) is not inside values array.
+const $isNotOneOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueArray = Array.isArray(itemValue)
+
+    if (isItemValueArray) {
+      const warningData = { item, itemValue, key, $isNotOneOf: values }
+      logger.warnings.arrayOneOfArray(warningData)
+      return !$isOneOf(key, values)(item)
+    }
+
+    return !values.includes(itemValue)
+  }
+}
+
+const $doesNotMatch = <DataT>(key: string, target: string): TestT<DataT> => {
+  return (item: DataT) => !$matches(key, target)(item)
+}
+
+const $isGreaterThan = <DataT>(key: string, value: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    return typeof itemValue === 'number' && itemValue > value
+  }
+}
+
+const $isLessThan = <DataT>(key: string, value: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    return typeof itemValue === 'number' && itemValue < value
+  }
+}
+
+// 1. check to see if item[key] (number) is greater than or equal to value (number)
+const $isGreaterThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueNumber = typeof itemValue === 'number'
+    if (!isItemValueNumber) return false
+    return itemValue >= value
+  }
+}
+
+const $isLessThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueNumber = typeof itemValue === 'number'
+
+    if (!isItemValueNumber) {
+      const warningData = { item, itemValue, key, $isLessThanOrEqualTovalue: value }
+      logger.warnings.numericComparisonOnNonNumber(warningData)
+      return false
+    }
+
+    return itemValue <= value
+  }
+}
+
+/**
+ * Checks if the value at item[key] is not greater than the value
+ */
+const $isNotGreaterThan = <DataT>(key: string, value: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueNumber = typeof itemValue === 'number'
+
+    if (!isItemValueNumber) {
+      const warningData = { item, itemValue, key, $isNotGreaterThanvalue: value }
+      logger.warnings.numericComparisonOnNonNumber(warningData)
+      return false
+    }
+
+    return itemValue <= value
+  }
+}
+
+const $isNotLessThan = <DataT>(key: string, value: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueNumber = typeof itemValue === 'number'
+
+    if (!isItemValueNumber) {
+      const warningData = { item, itemValue, key, $isNotLessThanvalue: value }
+      logger.warnings.numericComparisonOnNonNumber(warningData)
+      return false
+    }
+
+    return itemValue >= value
+  }
+}
+
+const $isNotGreaterThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueNumber = typeof itemValue === 'number'
+
+    if (!isItemValueNumber) {
+      const warningData = { item, itemValue, key, $isNotGreaterThanOrEqualTovalue: value }
+      logger.warnings.numericComparisonOnNonNumber(warningData)
+      return false
+    }
+
+    return itemValue !== value && itemValue < value
+  }
+}
+
+const $isNotLessThanOrEqualTo = <DataT>(key: string, value: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueNumber = typeof itemValue === 'number'
+
+    if (!isItemValueNumber) {
+      const warningData = { item, itemValue, key, $isNotLessThanOrEqualTovalue: value }
+      logger.warnings.numericComparisonOnNonNumber(warningData)
+      return false
+    }
+
+    return itemValue !== value && itemValue > value
+  }
+}
+
+// String and array content filters
+// if item[key] is a string and value is a string, check if item[key] includes value
+// if item[key] is an array and value is a primitive, check if item[key] includes value
+// if item[key] is an array and value is an array, check if item[key] contains all of the values
+const $contains = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueString = typeof itemValue === 'string'
+    const isValueString = typeof value === 'string'
+
+    if (isItemValueString && isValueString) return itemValue.includes(String(value))
+
+    const isItemValueArray = Array.isArray(itemValue)
+
+    if (isItemValueArray) {
+      const isValueArray = Array.isArray(value)
+
+      if (isValueArray) {
+        // Check if itemValue contains ALL values in the value array
+        return value.every((valueItem) => itemValue.includes(valueItem))
+      } else {
+        // If value is a primitive, check if it's in the array
+        return itemValue.includes(value)
+      }
+    }
+
+    return false
+  }
+}
+
+// if item[key] is a string and value is a string, check if item[key] does not include value
+// if item[key] is an array and value is a primitive, check if item[key] does not include value
+// if item[key] is an array and value is an array, check if item[key] does not contain ANY of the values
+// ex data: [{ tags: ['tall', 'strong'] }, { tags: ['strong', 'cute'] }, { tags: ['short', 'smart', 'cute', 'fast'] }]
+// ex: { tags$: { $doesNotContain: 'cute' } }
+// ex: { tags$: { $doesNotContain: ['cute', 'fast'] } }
+const $doesNotContain = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueString = typeof itemValue === 'string'
+    const isValueString = typeof value === 'string'
+
+    if (isItemValueString && isValueString) return !itemValue.includes(String(value))
+
+    const isItemValueArray = Array.isArray(itemValue)
+
+    if (isItemValueArray) {
+      const isValueArray = Array.isArray(value)
+
+      if (isValueArray) {
+        // Check if itemValue does not contain ANY values in the value array
+        return !value.some((valueItem) => itemValue.includes(valueItem))
+      } else {
+        // If value is a primitive, check if it's not in the array
+        return !itemValue.includes(value)
+      }
+    }
+
+    return true
+  }
+}
+
+const $containsAll = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+
+    if (!Array.isArray(itemValue)) return false
+
+    return values.every((searchItem) => itemValue.some((item) => isEqual(item, searchItem)))
+  }
+}
+
+const $containsSome = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+
+    if (!Array.isArray(itemValue)) return false
+
+    return values.some((searchItem) => itemValue.some((item) => isEqual(item, searchItem)))
+  }
+}
+
+// If item[key] is an array and value is primitive, check if item[key][0] === value
+// If item[key] is an array and value is an array, check if item[key] starts with values
+// If item[key] is an array and value is an object, check if item[key][0] equals value
+const $startsWith = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueString = typeof itemValue === 'string'
+    const isValueString = typeof value === 'string'
+
+    if (isItemValueString && isValueString) return itemValue.startsWith(value)
+
+    const isItemValueArray = Array.isArray(itemValue)
+    const isValueArray = Array.isArray(value)
+    const isValueBoolean = typeof value === 'boolean'
+    const isValueNumber = typeof value === 'number'
+    const isValuePrimitive = isValueBoolean || isValueNumber || isValueString
+
+    if (isItemValueArray) {
+      if (isValueArray) {
+        const valueLength = value.length
+        const startingItemValueItems = itemValue.slice(0, valueLength)
+        return value.every((item, index) => item === startingItemValueItems[index])
+      }
+
+      if (isValuePrimitive) {
+        const firstItemValueItem = itemValue[0]
+        return firstItemValueItem === value
+      }
+    }
+
+    return false
+  }
+}
+
+const $endsWith = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+
+    if (typeof itemValue === 'string' && typeof value === 'string') {
+      return itemValue.endsWith(value)
+    }
+
+    if (Array.isArray(itemValue)) {
+      if (typeof value === 'string') {
+        // Check if the last element of the array equals the string value
+        return itemValue.length > 0 && itemValue[itemValue.length - 1] === value
+      }
+
+      if (Array.isArray(value)) {
+        if (value.length > itemValue.length) return false
+
+        const offset = itemValue.length - value.length
+        return value.every((valueItem, index) => isEqual(valueItem, itemValue[offset + index]))
+      }
+    }
+
+    return false
+  }
+}
+
+const $doesNotStartWith = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => !$startsWith(key, value)(item)
+}
+
+const $doesNotEndWith = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => !$endsWith(key, value)(item)
+}
+
+const $isLongerThan = <DataT>(key: string, length: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    return (typeof itemValue === 'string' || Array.isArray(itemValue)) && itemValue.length > length
+  }
+}
+
+const $isShorterThan = <DataT>(key: string, length: number): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    return (typeof itemValue === 'string' || Array.isArray(itemValue)) && itemValue.length < length
+  }
+}
+
+const $isNotLongerThan = <DataT>(key: string, length: number): TestT<DataT> => {
+  return (item: DataT) => !$isLongerThan(key, length)(item)
+}
+
+const $isNotShorterThan = <DataT>(key: string, length: number): TestT<DataT> => {
+  return (item: DataT) => !$isShorterThan(key, length)(item)
+}
+
+const $exists = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isUndefined = itemValue === undefined
+    const isNull = itemValue === null
+
+    if (value === true) return !isUndefined && !isNull
+    if (value === false) return isUndefined || isNull
+
+    return !isUndefined && !isNull
+  }
+}
+
+const $isEmpty = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+
+    // Handle null and undefined
+    const isUndefined = itemValue === undefined
+    const isNull = itemValue === null
+    const isNullish = isUndefined || isNull
+
+    if (isNullish) return value === true
+
+    // Handle empty string
+    const isEmptyString = itemValue === ''
+    if (isEmptyString) return value === true
+
+    // Handle empty array
+    const isEmptyArray = Array.isArray(itemValue) && itemValue.length === 0
+    if (isEmptyArray) return value === true
+
+    // Handle empty object
+    const isEmptyObject = typeof itemValue === 'object' && !Array.isArray(itemValue) && Object.keys(itemValue).length === 0
+    if (isEmptyObject) return value === true
+
+    // If we get here, the value is NOT empty
+    return value === false
+  }
+}
+
+const $isBetween = <DataT>(key: string, [minimum, maximum]: [number, number]): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    return typeof itemValue === 'number' && itemValue >= minimum && itemValue <= maximum
+  }
+}
+
+const $isNotBetween = <DataT>(key: string, [minimum, maximum]: [number, number]): TestT<DataT> => {
+  return (item: DataT) => !$isBetween(key, [minimum, maximum])(item)
+}
+
+const $doesNotExist = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isUndefined = itemValue === undefined
+    const isNull = itemValue === null
+
+    if (value === true) return isUndefined || isNull
+    if (value === false) return !isUndefined && !isNull
+
+    return isUndefined || isNull
+  }
+}
+
+const $isNotEmpty = <DataT>(key: string, value: any): TestT<DataT> => {
+  return (item: DataT) => !$isEmpty(key, value)(item)
+}
+
+const $isSubsetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueString = typeof itemValue === 'string'
+
+    if (isItemValueString) {
+      const warningData = { item, itemValue, key, $isSupersetOf: values }
+      logger.warnings.subsetOnArray(warningData)
+      return false
+    }
+
+    const isItemValueArray = Array.isArray(itemValue)
+    if (!isItemValueArray && !isItemValueString) return false
+
+    return isSubsetOf(itemValue as any[], values)
+  }
+}
+
+const $isSupersetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  return (item: DataT) => {
+    const itemValue = getValue(item, key)
+    const isItemValueString = typeof itemValue === 'string'
+
+    if (isItemValueString) {
+      const warningData = { item, itemValue, key, $isSupersetOfvalues: values }
+      logger.warnings.supersetOnArray(warningData)
+      return false
+    }
+
+    const isItemValueArray = Array.isArray(itemValue)
+    if (!isItemValueArray && !isItemValueString) return false
+
+    return isSupersetOf(itemValue as any[], values)
+  }
+}
+
+const filters = {
+  $is,
+  $isNot,
+  $isBetween,
+  $isNotBetween,
+  $equals,
+  $doesNotEqual,
+  $isIn,
+  $isNotIn,
+  $isSubsetOf,
+  $isSupersetOf,
+  $isOneOf,
+  $isNotOneOf,
+  $matches,
+  $doesNotMatch,
+  $isGreaterThan,
+  $isLessThan,
+  $isGreaterThanOrEqualTo,
+  $isLessThanOrEqualTo,
+  $isNotGreaterThan,
+  $isNotLessThan,
+  $isNotGreaterThanOrEqualTo,
+  $isNotLessThanOrEqualTo,
+  $contains,
+  $containsAll,
+  $containsSome,
+  $doesNotContain,
+  $startsWith,
+  $endsWith,
+  $doesNotStartWith,
+  $doesNotEndWith,
+  $isLongerThan,
+  $isShorterThan,
+  $isNotLongerThan,
+  $isNotShorterThan,
+  $exists,
+  $isEmpty,
+  $doesNotExist,
+  $isNotEmpty,
+}
+
+export const FILTER_KEYS = Object.keys(filters)
 const LOGICAL_OPERATOR_KEYS = ['$or', '$and']
 
 const LOGICAL_OPERATOR_CONFIGS = {
@@ -18,464 +579,133 @@ const LOGICAL_OPERATOR_CONFIGS = {
   },
 }
 
-function createLogicalOperatorHandler(operatorKey: 'or' | 'and') {
-  const config = LOGICAL_OPERATOR_CONFIGS[operatorKey]
-  const testMethodKey = config.testMethodKey as 'some' | 'every'
-  return <DataT>(queryOptions: QueryConfigT) => {
-    const conditions = queryOptions[config.optionsKey] as QueryConfigT[]
-    const isArray = Array.isArray(conditions)
-    if (!isArray) throw config.arrayError(queryOptions)
+export const listerine = <DataT extends RecordWithIdT>(data: DataT[]) => {
+  const createLogicalOperatorHandler = (operatorKey: 'or' | 'and') => {
+    const config = LOGICAL_OPERATOR_CONFIGS[operatorKey]
+    const testMethodKey = config.testMethodKey as 'some' | 'every'
 
-    const test = (item: DataT) => {
-      return conditions[testMethodKey]((condition) => {
-        // Recursively handle nested conditions.
-        const tests = prepareQueryTests<DataT>(condition)
-        return tests.every((test) => test(item))
-      })
-    }
-    return [test]
-  }
-}
+    return (queryOptions: QueryT) => {
+      const conditions = queryOptions[config.optionsKey] as QueryT[]
+      const isArray = Array.isArray(conditions)
 
-const handleOperatorOr = createLogicalOperatorHandler('or')
-const handleOperatorAnd = createLogicalOperatorHandler('and')
+      if (!isArray) throw config.arrayError(queryOptions)
 
-export function prepareQueryTests<DataT>(queryOptions: QueryConfigT, prefix: string = ''): TestT<DataT>[] {
-  const tests: TestT<DataT>[] = []
-  const hasOperatorOr = '$or' in queryOptions
-  const hasOperatorAnd = '$and' in queryOptions
-  const hasBothOperators = hasOperatorOr && hasOperatorAnd
-
-  // Handle logical operators at the top level.
-  if (hasBothOperators) {
-    // If both $or and $and exist at the same level, treat them as separate conditions
-    // This creates an implicit AND between the $or and $and operations
-    const orTests = handleOperatorOr<DataT>(queryOptions)
-    const andTests = handleOperatorAnd<DataT>(queryOptions)
-    tests.push(...orTests, ...andTests)
-  } else if (hasOperatorOr) {
-    return handleOperatorOr<DataT>(queryOptions)
-  } else if (hasOperatorAnd) {
-    return handleOperatorAnd<DataT>(queryOptions)
-  }
-
-  const entries = Object.entries(queryOptions)
-
-  // Handle non-logical operators
-  for (const [key, value] of entries) {
-    // Skip logical operators (handled above)
-    if (LOGICAL_OPERATOR_KEYS.includes(key)) continue
-
-    const isValueNull = value === null
-    const isValueArray = Array.isArray(value)
-    const isValueObject = typeof value === 'object'
-    const keyIndicatesFilter = key.endsWith('$')
-
-    // Check if value is a nested object and, if so,
-    // recursively process nested object with updated prefix
-    if (!isValueNull && !keyIndicatesFilter && !isValueArray && isValueObject) {
-      const nestedPrefix = prefix ? `${prefix}.${key}` : key
-      const nestedTests = prepareQueryTests(value, nestedPrefix)
-      tests.push(...nestedTests)
-      continue
-    }
-
-    const getFixedFilterKey = () => `${prefix ? prefix + '.' : ''}${key.slice(0, -1)}`
-    const getStandardKey = () => `${prefix ? prefix + '.' : ''}${key}`
-    const actualKey = keyIndicatesFilter ? getFixedFilterKey() : getStandardKey()
-
-    if (!keyIndicatesFilter) {
-      tests.push(filters.$equals(actualKey, value))
-      continue
-    }
-
-    const filterOptions = value as Record<string, any>
-    for (const filterKey in filterOptions) {
-      const filterValue = filterOptions[filterKey]
-      const isValidFilterKey = FILTER_KEYS.includes(filterKey)
-      if (!isValidFilterKey) throw logger.errors.invalidFilterKey({ queryOptions, filterKey })
-      tests.push(filters[filterKey as FilterKeyT](actualKey, filterValue))
-    }
-  }
-
-  return tests
-}
-
-function createEnhancedData<DataT>(target: DataT[]): EnhancedDataT<DataT> {
-  if (!target.hasOwnProperty('first')) {
-    Object.defineProperty(target, 'first', {
-      get() {
-        const firstItem = this[0]
-        return firstItem
-      },
-    })
-  }
-
-  if (!target.hasOwnProperty('last')) {
-    Object.defineProperty(target, 'last', {
-      get() {
-        const lastIndex = this.length - 1
-        const lastItem = this[lastIndex]
-        return lastItem
-      },
-    })
-  }
-
-  return target as EnhancedDataT<DataT>
-}
-
-function checkIfNonArrayObject(target: any) {
-  const isArray = Array.isArray(target)
-  const isObject = typeof target === 'object'
-  return !isArray && isObject
-}
-
-const DEFAULT_OPTIONS = {
-  idKey: 'id' as const,
-}
-
-function getOptions<IdKeyT extends string>(configOptions: Partial<OptionsT<IdKeyT>>): OptionsT<IdKeyT> {
-  const options = { ...configOptions }
-  options.idKey = (options.idKey || DEFAULT_OPTIONS.idKey) as IdKeyT
-  return options as OptionsT<IdKeyT>
-}
-
-type DataWithoutIdT<DataT, IdKeyT extends keyof DataT> = Omit<DataT, IdKeyT>
-type SortFunctionT<DataT> = (a: DataT, b: DataT) => number
-type SortOptionsT<DataT> = {
-  key: keyof DataT
-  direction?: 'ascending' | 'descending'
-}
-
-class ListerineCollection<IdKeyT extends string = 'id', DataT extends Record<IdKeyT, string> = Record<IdKeyT, string>> {
-  private enhancedData: EnhancedDataT<DataT>
-  private options: OptionsT<IdKeyT>
-  private idKey: IdKeyT
-
-  constructor(target: DataT[], options?: OptionsT<IdKeyT>) {
-    this.idKey = (options?.idKey ?? 'id') as IdKeyT
-    this.options = getOptions(options || {})
-    this.data = target
-    this.enhancedData = this.data
-  }
-
-  set data(newData: DataT[]) {
-    this.enhancedData = createEnhancedData<DataT>(newData)
-  }
-
-  get data(): EnhancedDataT<DataT> {
-    return this.enhancedData
-  }
-
-  private getDocumentId = (document: DataT): string => {
-    return get(document, this.idKey as string) as string
-  }
-
-  private getSortedData = (key: keyof DataT, direction?: string) => {
-    const data = this.data as DataT[]
-    return data.toSorted((a: DataT, b: DataT) => {
-      const aValue = a[key]
-      const bValue = b[key]
-      const isStringA = typeof aValue === 'string'
-      const isStringB = typeof bValue === 'string'
-      const isDescending = direction === 'descending'
-
-      // Handle different data types
-      if (isStringA && isStringB) {
-        if (isDescending) return bValue.localeCompare(aValue)
-        return aValue.localeCompare(bValue)
+      const test = (item: DataT) => {
+        return conditions[testMethodKey]((condition) => {
+          // Recursively handle nested conditions.
+          const tests = prepareQueryTests(condition)
+          return tests.every((currentTest) => currentTest(item))
+        })
       }
 
-      // For numbers and other comparable types
-      if (aValue < bValue) return isDescending ? 1 : -1
-      if (aValue > bValue) return isDescending ? -1 : 1
-      return 0
-    })
+      return [test]
+    }
   }
 
-  private sortByKey = (key: keyof DataT) => {
-    const sortedData = this.getSortedData(key, 'ascending')
-    this.data = sortedData
-  }
+  const handleOperatorOr = createLogicalOperatorHandler('or')
+  const handleOperatorAnd = createLogicalOperatorHandler('and')
 
-  private sortByOptions = (options: SortOptionsT<DataT>) => {
-    const direction = options.direction || 'ascending'
-    const sortedData = this.getSortedData(options.key, direction)
-    this.data = sortedData
-  }
+  const prepareQueryTests = (queryOptions: QueryT, prefix: string = ''): TestT<DataT>[] => {
+    const tests: TestT<DataT>[] = []
+    const hasOperatorOr = '$or' in queryOptions
+    const hasOperatorAnd = '$and' in queryOptions
+    const hasBothOperators = hasOperatorOr && hasOperatorAnd
 
-  private sortByFunction = (comparer: SortFunctionT<DataT>) => {
-    const data = this.data as DataT[]
-    const sortedData = data.sort(comparer)
-    this.data = sortedData
-  }
-
-  // Perform a query using a query object.
-  private queryByQuery = (queryOptions: QueryConfigT) => {
-    const tests = prepareQueryTests(queryOptions)
-    return this.getDocumentsThatPass(tests)
-  }
-
-  // Remove a document that matches the given id.
-  private removeById = (id: string) => {
-    this.data = this.getDocumentsWithoutIds([id])
-  }
-
-  // Update this.data to remove all documents with ids
-  // found in the provided ids array.
-  private removeByIds = (ids: string[]) => {
-    this.data = this.getDocumentsWithoutIds(ids)
-  }
-
-  // Get the ids from the array of objects and then
-  // update this.data to remove all documents with
-  // corresponding ids
-  private removeByObjects = (items: DataT[]) => {
-    const ids = items.map(this.getDocumentId)
-    this.removeByIds(ids)
-  }
-
-  // When remove is called with an array, determine if
-  // we need to remove multiple documents by primitive ids from
-  // the input array or by ids found on objects in the input array.
-  private removeByArray = (input: string[] | DataT[]) => {
-    const isInputEmpty = input.length === 0
-    if (isInputEmpty) return this
-
-    const isFirstItemString = typeof input[0] === 'string'
-    const isFirstItemObject = checkIfNonArrayObject(input[0])
-    const isInputValid = isFirstItemObject || isFirstItemString
-
-    if (!isInputValid) {
-      logger.errors.removeWithArray({ input })
-      return this
+    // Handle logical operators at the top level.
+    if (hasBothOperators) {
+      // If both $or and $and exist at the same level, treat them as separate conditions
+      // This creates an implicit AND between the $or and $and operations
+      const orTests = handleOperatorOr(queryOptions)
+      const andTests = handleOperatorAnd(queryOptions)
+      tests.push(...orTests, ...andTests)
+    } else if (hasOperatorOr) {
+      return handleOperatorOr(queryOptions)
+    } else if (hasOperatorAnd) {
+      return handleOperatorAnd(queryOptions)
     }
 
-    if (isFirstItemString) this.removeByIds(input as string[])
-    if (isFirstItemObject) this.removeByObjects(input as DataT[])
+    const entries = Object.entries(queryOptions)
 
-    return this
-  }
+    // Handle non-logical operators
+    for (const [key, value] of entries) {
+      // Skip logical operators (handled above)
+      if (LOGICAL_OPERATOR_KEYS.includes(key)) continue
 
-  // Remove all documents that are matched by a query object.
-  private removeByQuery = (queryOptions: QueryConfigT) => {
-    const tests = prepareQueryTests(queryOptions)
-    this.data = this.getDocumentsThatFail(tests)
-  }
+      const isValueNull = value === null
+      const isValueArray = Array.isArray(value)
+      const isValueObject = typeof value === 'object'
+      const keyIndicatesFilter = key.endsWith('$')
 
-  // Return all documents that pass every test provided.
-  private getDocumentsThatPass = (tests: TestT<DataT>[]) => {
-    return this.data.filter((item) => tests.every((test) => test(item)))
-  }
-
-  // Return all documents that fail every test provided.
-  // Used for filtering out all documents that PASS every
-  // test provided to match documents to be removed.
-  private getDocumentsThatFail = (tests: TestT<DataT>[]) => {
-    return this.data.filter((item) => !tests.every((test) => test(item)))
-  }
-
-  private getDocumentsWithIds = (ids: string[]) => {
-    if (ids.length <= 10) {
-      const documents = []
-      const idsCount = ids.length
-      for (const document of this.data) {
-        const documentId = this.getDocumentId(document)
-        const isMatch = ids.includes(documentId)
-        if (!isMatch) continue
-        documents.push(document)
-        const docsCount = documents.length
-        const areAllFound = docsCount === idsCount
-        if (areAllFound) break
+      // Check if value is a nested object and, if so,
+      // recursively process nested object with updated prefix
+      if (!isValueNull && !keyIndicatesFilter && !isValueArray && isValueObject) {
+        const nestedPrefix = prefix ? `${prefix}.${key}` : key
+        const nestedTests = prepareQueryTests(value, nestedPrefix)
+        tests.push(...nestedTests)
+        continue
       }
-      return documents
+
+      const getFixedFilterKey = () => `${prefix ? prefix + '.' : ''}${key.slice(0, -1)}`
+      const getStandardKey = () => `${prefix ? prefix + '.' : ''}${key}`
+      const actualKey = keyIndicatesFilter ? getFixedFilterKey() : getStandardKey()
+
+      if (!keyIndicatesFilter) {
+        tests.push(filters.$equals(actualKey, value))
+        continue
+      }
+
+      const filterOptions = value as Record<string, any>
+      for (const filterKey in filterOptions) {
+        const filterValue = filterOptions[filterKey]
+        const isValidFilterKey = FILTER_KEYS.includes(filterKey)
+
+        if (!isValidFilterKey) {
+          throw logger.errors.invalidFilterKey({ queryOptions, filterKey })
+        }
+
+        tests.push(filters[filterKey as FilterKeyT](actualKey, filterValue))
+      }
     }
 
-    // For larger data sets, use Set for O(1) lookups.
+    return tests
+  }
+
+  const getDocumentsThatPass = (tests: TestT<DataT>[]) => {
+    return data.filter((item) => tests.every((test) => test(item)))
+  }
+
+  const getDocumentsWithIds = (ids: string[]) => {
     const idSet = new Set(ids)
-    const documents = []
-    for (const document of this.data) {
-      const documentId = this.getDocumentId(document)
-      const isMatch = idSet.has(documentId)
+    const documents = [] as DataT[]
+
+    for (const document of data) {
+      const isMatch = idSet.has(document.id)
       if (isMatch) documents.push(document)
-      // Early bailout when we've found all requested documents
       if (documents.length === ids.length) break
     }
+
     return documents
   }
 
-  private getDocumentsWithoutIds = (ids: string[]) => {
-    if (ids.length <= 10) {
-      const documents = []
-      const totalDocuments = this.data.length
-      const idsCount = ids.length
-      const remainingDocsCount = totalDocuments - idsCount
-      for (const document of this.data) {
-        const documentId = this.getDocumentId(document)
-        const isMatch = !ids.includes(documentId)
-        if (!isMatch) continue
-        documents.push(document)
-        const docsCount = documents.length
-        const areAllFound = docsCount === remainingDocsCount
-        if (areAllFound) break
-      }
-      return documents
-    }
-
-    // For larger data sets, use Set for O(1) lookups.
-    const idSet = new Set(ids)
-    const documents = []
-    for (const document of this.data) {
-      const documentId = this.getDocumentId(document)
-      const isMatch = !idSet.has(documentId)
-      if (isMatch) documents.push(document)
-    }
+  const find = (queryOptions: QueryT) => {
+    const tests = prepareQueryTests(queryOptions)
+    const documents = getDocumentsThatPass(tests)
     return documents
   }
 
-  // When inserting a new document(s), if no id is provided,
-  // listerine generates and applies one.
-  private getDocumentWithIdEnsured = (item: DataWithoutIdT<DataT, IdKeyT> | DataT): DataT => {
-    const itemId = this.getDocumentId(item as DataT)
-    const isIdValid = typeof itemId === 'string'
-    if (isIdValid) return item as DataT
-
-    const id = crypto.randomUUID()
-    const idKey = this.options.idKey!
-    const itemWithId = { ...item, [idKey]: id } as DataT
-    return itemWithId
+  const findById = (id: string) => {
+    const documents = getDocumentsWithIds([id])
+    return documents[0]
   }
 
-  private insertMultiple = (items: (DataWithoutIdT<DataT, IdKeyT> | DataT)[]) => {
-    const documents = items.map(this.getDocumentWithIdEnsured)
-    this.data = [...this.data, ...documents]
+  const findByIds = (target: string[]) => {
+    const documents = getDocumentsWithIds(target)
+    return documents
   }
 
-  private insertOne = (item: DataWithoutIdT<DataT, IdKeyT> | DataT) => {
-    const document = this.getDocumentWithIdEnsured(item)
-    this.data = [...this.data, document]
+  return {
+    find,
+    findById,
+    findByIds,
   }
-
-  sort = (options: SortFunctionT<DataT> | SortOptionsT<DataT> | string) => {
-    const isString = typeof options === 'string'
-    const isFunction = typeof options === 'function'
-    const isObject = typeof options === 'object'
-
-    if (isString) this.sortByKey(options as keyof DataT)
-    if (isFunction) this.sortByFunction(options as SortFunctionT<DataT>)
-    if (isObject) this.sortByOptions(options)
-
-    return this
-  }
-
-  insert = (items: DataWithoutIdT<DataT, IdKeyT> | (DataWithoutIdT<DataT, IdKeyT> | DataT)[] | DataT | DataT[]) => {
-    const isArray = Array.isArray(items)
-    const isObject = !isArray && typeof items === 'object'
-
-    if (isArray) this.insertMultiple(items)
-    if (isObject) this.insertOne(items)
-
-    return this
-  }
-
-  remove = (queryOptions: QueryConfigT | string | string[]) => {
-    const isArray = Array.isArray(queryOptions)
-    const isString = typeof queryOptions === 'string'
-    const isObject = !isArray && typeof queryOptions === 'object'
-
-    if (isString) this.removeById(queryOptions)
-    if (isArray) this.removeByArray(queryOptions)
-    if (isObject) this.removeByQuery(queryOptions)
-
-    return this
-  }
-
-  private updateByArray = (array: Partial<DataT>[]) => {
-    const newDocuments = [...this.data]
-    const totalUpdatesCount = array.length
-    let updatedCount = 0
-
-    const updatesMap = array.reduce(
-      (final, updateData) => {
-        const documentId = this.getDocumentId(updateData as DataT)
-        const { [this.idKey]: _, ...updates } = updateData
-        final[documentId] = updates
-        return final
-      },
-      {} as Record<string, any>,
-    )
-
-    for (let index = 0; index < newDocuments.length; index++) {
-      const document = newDocuments[index]
-      const documentId = this.getDocumentId(document)
-      const updates = updatesMap[documentId]
-      const isMatch = !!updates
-      if (!isMatch) continue
-
-      updatedCount += 1
-      newDocuments[index] = { ...document, ...updates }
-      const areAllUpdated = totalUpdatesCount === updatedCount
-      if (areAllUpdated) break
-    }
-
-    this.data = newDocuments
-  }
-
-  private updateByObject = (item: Partial<DataT>) => {
-    const newDocuments = [...this.data]
-    const documentId = this.getDocumentId(item as DataT)
-    const { [this.idKey]: _, ...updates } = item
-
-    for (let index = 0; index < newDocuments.length; index++) {
-      const document = newDocuments[index]
-      const currentDocumentId = this.getDocumentId(document)
-      const isMatch = currentDocumentId === documentId
-      if (!isMatch) continue
-
-      newDocuments[index] = { ...document, ...updates }
-      break
-    }
-
-    this.data = newDocuments
-  }
-
-  update = (arg: Partial<DataT> | Partial<DataT>[]) => {
-    const isArray = Array.isArray(arg)
-    const isObject = !isArray && typeof arg === 'object'
-
-    if (isArray) this.updateByArray(arg)
-    if (isObject) this.updateByObject(arg)
-
-    return this
-  }
-
-  query = (queryOptions: QueryConfigT | string | string[]) => {
-    const isArray = Array.isArray(queryOptions)
-    const isString = typeof queryOptions === 'string'
-    const isObject = !isArray && typeof queryOptions === 'object'
-
-    let queriedDocuments = [] as DataT[]
-
-    if (isString) queriedDocuments = this.getDocumentsWithIds([queryOptions])
-    if (isArray) queriedDocuments = this.getDocumentsWithIds(queryOptions)
-    if (isObject) queriedDocuments = this.queryByQuery(queryOptions)
-
-    return listerine<IdKeyT, DataT>(queriedDocuments, this.options)
-  }
-}
-
-// Function overloads for better type inference
-export function listerine<DataT extends Record<'id', string>>(target: DataT[], options?: OptionsT<'id'>): ListerineCollection<'id', DataT>
-
-export function listerine<IdKeyT extends string, DataT extends Record<IdKeyT, string>>(
-  target: DataT[],
-  options?: OptionsT<IdKeyT>, // Remove the & { idKey: IdKeyT } requirement
-): ListerineCollection<IdKeyT, DataT>
-
-export function listerine<IdKeyT extends string = 'id', DataT extends Record<IdKeyT, string> = Record<IdKeyT, string>>(
-  target: DataT[],
-  options?: OptionsT<IdKeyT>,
-): ListerineCollection<IdKeyT, DataT> {
-  const collection = new ListerineCollection<IdKeyT, DataT>(target, options)
-  return collection
 }
