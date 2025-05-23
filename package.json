@@ -1,6 +1,6 @@
 {
   "name": "listerine",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0",
   "description": "A powerful, type-safe in-memory query engine for JavaScript/TypeScript arrays. Listerine provides MongoDB-like query syntax for filtering, searching, and retrieving data from arrays of objects.",
   "author": "rokki <hannahroksanne@gmail.com>",
   "license": "MIT",
@@ -29,8 +29,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc",
     "verify": "npm run typecheck && npm run test && npm run build",
-    "prepublishOnly": "npm run build:readme && npm run verify",
-    "build:readme": "npx @appnest/readme generate --config ./docs/blueprint.json --input ./docs/blueprint.md"
+    "prepublishOnly": "npm run verify"
   },
   "devDependencies": {
     "@appnest/readme": "^1.2.7",

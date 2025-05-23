@@ -687,18 +687,18 @@ export const listerine = <DataT extends RecordWithIdT>(data: DataT[]) => {
     return documents
   }
 
-  const find = (queryOptions: QueryT) => {
-    const tests = prepareQueryTests(queryOptions)
+  const find = (query: QueryT): DataT[] => {
+    const tests = prepareQueryTests(query)
     const documents = getDocumentsThatPass(tests)
     return documents
   }
 
-  const findById = (id: string) => {
+  const findById = (id: string): DataT | null => {
     const documents = getDocumentsWithIds([id])
-    return documents[0]
+    return documents[0] || null
   }
 
-  const findByIds = (target: string[]) => {
+  const findByIds = (target: string[]): DataT[] => {
     const documents = getDocumentsWithIds(target)
     return documents
   }

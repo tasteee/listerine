@@ -1,10 +1,9 @@
 # listerine
 
-A powerful, type-safe in-memory query engine for JavaScript/TypeScript arrays. listerine provides MongoDB-like query syntax for filtering, searching, and retrieving data from arrays of objects.
+listerine is a powerful, type-safe, in-memory query engine with Mongo-*ish* syntax for performing complex (or simple!) queries on arrays of objects.
 
 ## Features
-
-- **MongoDB-like Query Syntax**: Filters galore!
+- **MongoDB-like Query Syntax**: Filters and stuff
 - **Type Safety**: Full TypeScript support with generic types
 - **Logical Operators**: Support for `$and` and `$or` operations
 - **Nested Object Queries**: Query deeply nested object properties
@@ -24,68 +23,78 @@ npm install listerine
 ```ts
 import { listerine } from 'listerine'
 
-const users = [
-  { id: '1', name: 'Alice', age: 30, tags: ['admin', 'developer'] },
-  { id: '2', name: 'Bob', age: 25, tags: ['user'] },
-  { id: '3', name: 'Charlie', age: 35, tags: ['admin'] },
-]
+type UserT = {
+  id: string,
+  name: string,
+  age: number,
+  tags: string[]
+}
 
-// Find users older than 25
-const adults = listerine(users).find({ age$: { $isGreaterThan: 25 } })
-// Returns: Alice and Charlie
+const hannah = { id: '1', name: 'hannah', age: 25, tags: ['admin', 'dev'] }
+const lily = { id: '2', name: 'lily', age: 18, tags: ['guest'] }
+const sailor = { id: '3', name: 'sailor', age: 32, tags: ['guest'] }
+const userList = [hannah, lily, sailor]
+const userCollection = listerine<UserT>(userList)
 
-// Find admins
-const admins = listerine(users).find({ tags$: { $contains: 'admin' } })
-// Returns: Alice and Charlie
+const query =  { age$: { $isGreaterThan: 20 } }
+const adults = userCollection.find(query)
+expect(adults).toEqual([hannah, sailor])
 
-// Find specific user by ID
-const user = listerine(users).findById('1')
-// Returns: Alice
+const query = { tags$: { $contains: 'guest' } }
+const guests = userCollection.find(query)
+expect(guests).toEqual([lily, sailor])
+
+const members = userCollection.findById(['1', '2'])
+expect(members).toEqual([hannah, lily])
+
+const member = userCollection.findById('1')
+expect(member).toEqual(hannah)
 ```
 
 ## API Reference
 
-### Core Methods
+### `listerine<DataT>(dataList: DataT[])`
 
-#### `listerine(data)`
+Creates a new listerine collection with the provided array of objects.
 
-Creates a new listerine instance with the provided data array.
 
-**Parameters:**
+```ts
+const collection = listerine<UserT>(userList)
+expect(collection).toHaveProperty('find')
+expect(collection).toHaveProperty('findById')
+expect(collection).toHaveProperty('findByIds')
+```
 
-- `data`: Array of objects, each must have an `id` property
+*NOTE: listerine will apply an `id` property to any object in `dataList` that does not already have one.*
 
-**Returns:** listerine instance with `find`, `findById`, and `findByIds` methods
+### `collection.find(query: QueryT)`
 
-#### `find(query)`
+Finds and returns an array of all documents matching the query criteria.
 
-Finds all documents matching the query criteria.
+```ts
+const collection = listerine<UserT>(userList)
+const results = collection.find({ isActive: true })
+expect(Array.isArray(results)).toEqual(true)
+```
 
-**Parameters:**
+### `collection.findById(id: string)`
 
-- `query`: Query object using listerine query syntax
+Finds and returns the document that has the provided id. If no document has the provided id, returns `null`.
 
-**Returns:** Array of matching documents
+```ts
+const collection = listerine<UserT>(userList)
+const result = collection.findById('123')
+```
 
-#### `findById(id)`
+### `collection.findByIds(ids: string[])`
 
-Finds a single document by its ID.
+Finds and returns any documents with an id found in the provided ids. If no documents match the provided ids, an empty array.
 
-**Parameters:**
-
-- `id`: String ID of the document
-
-**Returns:** Single document or `undefined`
-
-#### `findByIds(ids)`
-
-Finds multiple documents by their IDs.
-
-**Parameters:**
-
-- `ids`: Array of string IDs
-
-**Returns:** Array of matching documents
+```ts
+const collection = listerine<UserT>(userList)
+const result = collection.findById('123')
+expect(Array.isArray(results)).toEqual(true)
+```
 
 ## Query Syntax
 
@@ -93,13 +102,13 @@ Finds multiple documents by their IDs.
 
 ```ts
 // Direct equality (implicit $equals)
-list.find({ name: 'Alice' })
+list.find({ name: 'hannah' })
 
 // Explicit equality
-list.find({ name$: { $equals: 'Alice' } })
+list.find({ name$: { $equals: 'hannah' } })
 
 // Not equal
-list.find({ name$: { $doesNotEqual: 'Alice' } })
+list.find({ name$: { $doesNotEqual: 'hannah' } })
 ```
 
 ### Numeric Comparisons
@@ -131,7 +140,7 @@ list.find({ age$: { $isNotBetween:  } })
 list.find({ tags$: { $contains: 'admin' } })
 
 // Contains all values
-list.find({ tags$: { $containsAll: ['admin', 'developer'] } })
+list.find({ tags$: { $containsAll: ['admin', 'dev'] } })
 
 // Contains some values
 list.find({ tags$: { $containsSome: ['admin', 'user'] } })
@@ -235,8 +244,8 @@ const users = [
     id: '1',
     profile: {
       personal: {
-        name: 'Alice',
-        age: 30,
+        name: 'hannah',
+        age: 25,
       },
       settings: {
         theme: 'dark',
@@ -247,18 +256,19 @@ const users = [
 
 const list = listerine(users)
 
-// Query nested properties
+// Nested query
 list.find({
   profile: {
     personal: {
+      name: 'hannah',
       age$: { $isGreaterThan: 25 },
     },
   },
 })
 
-// Alternative dot notation (if supported by your data structure)
+// Or...
 list.find({
-  'profile.personal.name': 'Alice',
+  'profile.personal.name': 'hannah',
   'profile.personal.age$': { $isGreaterThan: 25 },
 })
 ```
@@ -268,7 +278,7 @@ list.find({
 ### User Management System
 
 ```ts
-interface User {
+type UserT = {
   id: string
   username: string
   email: string
@@ -283,44 +293,44 @@ interface User {
   }
 }
 
-const users: User[] = [
+// 💭 Imagine there are more users that just the one.
+const users: UserT[] = [
   {
     id: '1',
     username: 'alice_admin',
     email: 'alice@example.com',
-    age: 30,
+    age: 25,
     roles: ['admin', 'user'],
     isActive: true,
     profile: {
-      firstName: 'Alice',
+      firstName: 'hannah',
       lastName: 'Johnson',
       bio: 'System administrator',
     },
-  },
-
-  // ... more users
+  }
 ]
 
+const usersCollection = listerine<UserT>(memberList)
+
 // Find active admin users
-const activeAdmins = listerine(users).find({
+const activeAdmins = usersCollection.find({
   isActive: true,
   roles$: { $contains: 'admin' },
 })
 
 // Find users with incomplete profiles
-const incompleteProfiles = listerine(users).find({
-  profile: {
-    bio$: { $doesNotExist: true },
-  },
+const incompleteProfiles = usersCollection.find({
+  'profile.bio$': { $doesNotExist: true }
 })
 
 // Find young active users or admins
-const targetUsers = listerine(users).find({
+const targetUsers = usersCollection.find({
   $or: [
-    {
-      $and: [{ age$: { $isLessThan: 25 } }, { isActive: true }],
-    },
     { roles$: { $contains: 'admin' } },
+    {
+      isActive: true,
+      age$: { $isLessThan: 25 }
+    },
   ],
 })
 ```
@@ -328,7 +338,7 @@ const targetUsers = listerine(users).find({
 ### E-commerce Product Search
 
 ```ts
-interface Product {
+type ProductT =  {
   id: string
   name: string
   price: number
@@ -339,7 +349,8 @@ interface Product {
   description: string
 }
 
-const products: Product[] = [
+// 💭 Imagine there are more products that just the one.
+const products: ProductT[] = [
   {
     id: '1',
     name: 'Wireless Headphones',
@@ -350,26 +361,34 @@ const products: Product[] = [
     rating: 4.5,
     description: 'High-quality wireless headphones with noise cancellation',
   },
-
-  // ... more products
 ]
 
+const productsCollection = listerine<ProductT>(products)
+
 // Find affordable electronics in stock
-const affordableElectronics = listerine(products).find({
+const affordableElectronics = productsCollection.find({
   category: 'Electronics',
   price$: { $isLessThanOrEqualTo: 100 },
   inStock: true,
 })
 
 // Find highly rated products with specific features
-const premiumProducts = listerine(products).find({
+const premiumProducts = productsCollection.find({
   rating$: { $isGreaterThanOrEqualTo: 4.0 },
-  $or: [{ tags$: { $contains: 'premium' } }, { price$: { $isGreaterThan: 200 } }],
+
+  $or: [
+    { tags$: { $contains: 'premium' } },
+    { price$: { $isGreaterThan: 200 } }
+  ],
 })
 
 // Search products by description keywords
-const searchResults = listerine(products).find({
-  $or: [{ name$: { $contains: 'wireless' } }, { description$: { $contains: 'wireless' } }, { tags$: { $contains: 'wireless' } }],
+const results = productsCollection.find({
+  $or: [
+    { name$: { $contains: 'wireless' } },
+    { description$: { $contains: 'wireless' } },
+    { tags$: { $contains: 'wireless' } }
+  ],
 })
 ```
 
@@ -378,14 +397,14 @@ const searchResults = listerine(products).find({
 listerine is built with TypeScript and provides full type safety:
 
 ```ts
-interface MyData {
+type DataT = {
   id: string
   name: string
   count: number
 }
 
-const data: MyData[] = [...]
-const list = listerine(data) // Fully typed
+const data: DataT[] = [...]
+const list = listerine<DataT>(data) // Fully typed
 
 // TypeScript will enforce correct property names and types
 const results = list.find({
@@ -397,7 +416,8 @@ const results = list.find({
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines and submit pull requests to our GitHub repository.
+Contributions are welcome!  
+No rules or templates -- just have fun!
 
 ## License
 
