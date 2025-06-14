@@ -49,6 +49,9 @@ expect(members).toEqual([hannah, lily])
 
 const member = userCollection.findById('1')
 expect(member).toEqual(hannah)
+
+const member = userCollection.findOne({ name$: { $contains: 'i' } })
+expect(member).toEqual(lily)
 ```
 
 ## API Reference

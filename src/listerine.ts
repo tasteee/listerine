@@ -487,6 +487,9 @@ const $isNotEmpty = <DataT>(key: string, value: any): TestT<DataT> => {
 }
 
 const $isSubsetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  const isArray = Array.isArray(values)
+  if (!isArray) console.error('[listerine]non-array passed to $isSubsetOf', { [key]: values })
+
   return (item: DataT) => {
     const itemValue = getValue(item, key)
     const isItemValueString = typeof itemValue === 'string'
@@ -505,6 +508,9 @@ const $isSubsetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
 }
 
 const $isSupersetOf = <DataT>(key: string, values: any[]): TestT<DataT> => {
+  const isArray = Array.isArray(values)
+  if (!isArray) console.error('[listerine]non-array passed to $isSupersetOf', { [key]: values })
+
   return (item: DataT) => {
     const itemValue = getValue(item, key)
     const isItemValueString = typeof itemValue === 'string'
@@ -693,19 +699,26 @@ export const listerine = <DataT extends RecordWithIdT>(data: DataT[]) => {
     return documents
   }
 
-  const findById = (id: string): DataT | null => {
+  const findById = (id: string): DataT => {
     const documents = getDocumentsWithIds([id])
-    return documents[0] || null
+    return documents[0]
   }
 
-  const findByIds = (target: string[]): DataT[] => {
-    const documents = getDocumentsWithIds(target)
+  const findByIds = (ids: string[]): DataT[] => {
+    const documents = getDocumentsWithIds(ids)
     return documents
+  }
+
+  const findOne = (query: QueryT): DataT => {
+    const tests = prepareQueryTests(query)
+    const documents = getDocumentsThatPass(tests)
+    return documents[0]
   }
 
   return {
     find,
     findById,
     findByIds,
+    findOne,
   }
 }

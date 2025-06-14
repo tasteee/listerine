@@ -1,6 +1,6 @@
 {
   "name": "listerine",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A powerful, type-safe in-memory query engine for JavaScript/TypeScript arrays. Listerine provides MongoDB-like query syntax for filtering, searching, and retrieving data from arrays of objects.",
   "author": "rokki <hannahroksanne@gmail.com>",
   "license": "MIT",

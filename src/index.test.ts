@@ -464,7 +464,7 @@ describe('Listerine Query Engine', () => {
       expect(users.map((u) => u.name)).toEqual(['Alice Johnson', 'Charlie Brown'])
     })
 
-    it.only('should handle tag-based role filtering', () => {
+    it('should handle tag-based role filtering', () => {
       const users = db.find({
         tags$: { $isSupersetOf: ['intern'] },
         isActive: true,

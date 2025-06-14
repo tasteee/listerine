@@ -1,0 +1,28 @@
+export const SCALES = [
+  {
+    name: 'C major',
+    id: 'C major',
+    setNum: 2773,
+    chroma: '101011010101',
+    normalized: '101010110101',
+    values: [9, 8, 7, 6, 4, 5],
+    intervals: ['1P', '2M', '3M', '4P', '5P', '6M', '7M'],
+    aliases: ['ionian'],
+    type: 'major',
+    tonic: 'C',
+    notes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+  },
+  {
+    name: 'C# major',
+    id: 'C# major',
+    setNum: 2773,
+    chroma: '101011010101',
+    normalized: '101010110101',
+    values: [0, 1, 2, 3, 4, 5],
+    intervals: ['1P', '2M', '3M', '4P', '5P', '6M', '7M'],
+    aliases: ['ionian'],
+    type: 'major',
+    tonic: 'C#',
+    notes: ['C#', 'D#', 'E#', 'F#', 'G#', 'A#', 'B#'],
+  },
+]
